@@ -205,3 +205,32 @@ def test_cli_backup_exporta_e_apaga(tmp_path, capsys):
     assert cli.main(["delete-producer", "+5500900004444"]) == 0
     assert cli.main(["delete-producer", "+5500900004444"]) == 1
     assert cli.main([]) == 2
+
+# ---- modo demo (demonstração pública para os avaliadores) ----
+DEMO_ENV = dict(BALK_ENV="demo", BALK_API_KEY=CHAVE, BALK_AUTH_SECRET="s" * 32,
+                PUBLIC_BASE_URL="https://balk-demo.exemplo.com.br", DATA_MODE="simulado")
+
+
+def test_demo_abre_o_simulador_sem_chave(monkeypatch):
+    c = _app(monkeypatch, **DEMO_ENV)
+    assert c.get("/demo/index.html").status_code == 200
+    assert c.get("/destinos").status_code == 200
+    assert c.get("/outbox").status_code == 200
+
+
+def test_demo_nao_apaga_o_banco_sem_chave(monkeypatch):
+    c = _app(monkeypatch, **DEMO_ENV)
+    assert c.post("/simulate/reset").status_code == 401
+    assert c.post("/simulate/reset", headers={"X-API-Key": CHAVE}).status_code == 200
+
+
+def test_demo_mantem_as_rotas_internas_com_chave(monkeypatch):
+    c = _app(monkeypatch, **DEMO_ENV)
+    assert c.post("/jobs/daily").status_code == 401
+
+
+@pytest.mark.parametrize("extra", [dict(BALK_API_KEY=""), dict(PUBLIC_BASE_URL="http://localhost:8000"),
+                                   dict(BALK_AUTH_SECRET=""), dict(DATA_MODE="real"), dict(WHATSAPP_TOKEN="x")])
+def test_demo_recusa_subir_com_pendencias(monkeypatch, extra):
+    with pytest.raises(RuntimeError, match="BALK_ENV=demo com pendências"):
+        _app(monkeypatch, **{**DEMO_ENV, **extra})

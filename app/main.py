@@ -39,7 +39,7 @@ ROOT = config.ROOT
 
 internal = APIRouter(dependencies=[Depends(security.require_api_key)])
 public = APIRouter()
-demo = APIRouter(dependencies=[Depends(security.require_api_key)])  # com BALK_API_KEY definida, nem a demo abre sem chave
+demo = APIRouter(dependencies=[Depends(security.require_api_key_outside_demo)])  # em BALK_ENV=demo abre sem chave
 report_limiter = security.RateLimiter(60, 60)
 webhook_limiter = security.RateLimiter(600, 60)
 TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
@@ -429,8 +429,10 @@ def simulate_daily(hora: Optional[int] = 10):
     return {"enviados": run_daily(now)}
 
 
-@demo.post("/simulate/reset")
+# a rota que apaga o banco continua exigindo a chave
+@demo.post("/simulate/reset", dependencies=[Depends(security.require_api_key)])
 def simulate_reset():
+    """Apaga tudo. Na demo pública exige a chave, para um avaliador não apagar a demo de outro."""
     db.reset_all()
     OUTBOX.clear()
     return {"ok": True}
@@ -509,6 +511,8 @@ def create_app() -> FastAPI:
         # o simulador chama estas rotas sem chave (as versões "demo" vêm primeiro e têm o mesmo caminho das internas)
         a.include_router(demo)
         a.mount("/demo", StaticFiles(directory=str(ROOT / "demo"), html=True), name="demo")
+    if config.is_demo() and config.demo_problems():
+        raise RuntimeError("BALK_ENV=demo com pendências: " + "; ".join(config.demo_problems()))
     a.include_router(internal)
     a.mount("/app", StaticFiles(directory=str(WEB), html=True), name="app")  # páginas do site e bibliotecas do mapa (web/vendor)
     return a

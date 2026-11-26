@@ -26,6 +26,13 @@ def require_api_key(request: Request) -> None:
         raise HTTPException(401, "chave de API inválida")
 
 
+def require_api_key_outside_demo(request: Request) -> None:
+    """Rotas do simulador: abertas em BALK_ENV=demo (os avaliadores usam sem chave); fora da demo, igual a require_api_key."""
+    if config.is_demo():
+        return
+    require_api_key(request)
+
+
 class RateLimiter:
     """Janela deslizante em memória, por IP. Basta para um processo só; com vários, use um proxy (nginx) na frente."""
 
