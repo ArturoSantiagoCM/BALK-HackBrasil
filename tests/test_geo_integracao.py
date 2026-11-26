@@ -74,7 +74,8 @@ def test_estresse_antigo_continua_igual_quando_nao_ha_area_fraca():
     st = _stats(ndvi_mean=0.4, ndvi_ref_mean=0.7, ndvi_ref_std=0.1)
     a = evaluate_stress(st)
     assert a.evidence["z"] == -3.0 and "modo" not in a.evidence
-    assert "z = -3" in render(a, "whatsapp", "pt")
+    txt = render(a, "whatsapp", "pt")
+    assert "z =" not in txt and "NDVI" not in txt and "mais fraca" in txt  # sem sigla na mensagem do produtor
 
 
 # ---- nota: pH e geadas no ciclo ----
@@ -122,9 +123,9 @@ def test_relatorio_traz_relevo_zonas_agua_e_baixada():
     st = _stats(slope_mean_pct=6.4, aspect_label="S", erosion_class="baixo", moisture_class="baixa",
                 frost_relief_offset_c=-0.8, zones=[{"id": 1, "share_pct": 30.0, "ndvi_mean": 0.55}, {"id": 2, "share_pct": 70.0, "ndvi_mean": 0.75}])
     rep = Report(ranking=[_viab()], stats=st, relations={"saldo_mm": -8.2, "atencao_agua": True})
-    for lang, trechos in {"pt": ("declividade média de 6.4%", "voltada para sul", "Zonas de manejo: 2", "baixa", "-8.2", "olho na água", "0.8"),
-                          "es": ("pendiente media", "hacia sur", "Zonas de manejo: 2", "baja", "-8.2", "vigilar", "0.8"),
-                          "en": ("average slope 6.4%", "facing south", "Management zones: 2", "low", "-8.2", "Keep an eye", "0.8")}.items():
+    for lang, trechos in {"pt": ("declividade média de 6.4%", "voltada para sul", "2 zonas de manejo", "30%", "baixa", "-8.2", "olho na água", "0.8"),
+                          "es": ("pendiente media", "hacia sur", "2 zonas de manejo", "30%", "baja", "-8.2", "vigilar", "0.8"),
+                          "en": ("average slope 6.4%", "facing south", "2 management zones", "30%", "low", "-8.2", "Keep an eye", "0.8")}.items():
         txt = render(rep, "whatsapp", lang)
         for t in trechos:
             assert t in txt, (lang, t)

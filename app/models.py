@@ -21,8 +21,9 @@ class Producer(BaseModel):
     lang: Literal["pt", "es", "en"] = "pt"
     source: str = "direto"  # "cooperativa_x", "csv", "plataforma_y"
     location_precision: Literal["ponto", "municipio"] = "ponto"
-    state: str = "INICIO"
+    state: str = "INICIO"  # INICIO, PEDE_*, AGUARDA_SIM, AGUARDA_TALHAO (verificou no site, falta desenhar), ATIVO, SAIU
     active: bool = True
+    name: Optional[str] = None  # nome informado no site (opcional)
 
 
 class Weather(BaseModel):  # saída do M2 (clima)
@@ -44,6 +45,10 @@ class SpatialStats(BaseModel):  # saída do M3
     ndvi_ref_std: Optional[float] = None
     # --- motor geo (app/geo): todos opcionais ---
     ph: Optional[float] = None  # pH do solo (SoilGrids, 0-5 cm)
+    ndvi_median: Optional[float] = None  # estatísticas do NDVI no talhão (para o histórico por safra)
+    ndvi_p10: Optional[float] = None
+    ndvi_p90: Optional[float] = None
+    valid_fraction: Optional[float] = None  # fração de pixels úteis (sem nuvem/sombra) dentro da área
     ndmi_mean: Optional[float] = None  # umidade da vegetação
     ndre_mean: Optional[float] = None  # clorofila relativa
     moisture_class: Optional[Literal["baixa", "media", "alta"]] = None

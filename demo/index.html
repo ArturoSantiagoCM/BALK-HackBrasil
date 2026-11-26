@@ -107,7 +107,8 @@ async function api(path, opts) {
 }
 const post = (p, body) => api(p, { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify(body || {}) });
 const esc = s => s.replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
-const fmt = s => esc(s).replace(/\*(.+?)\*/g, "<b>$1</b>");
+const fmt = s => esc(s).replace(/\*(.+?)\*/g, "<b>$1</b>")
+  .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');  // link do relatório detalhado
 
 function bubble(box, text, me, media) {
   const d = document.createElement("div");

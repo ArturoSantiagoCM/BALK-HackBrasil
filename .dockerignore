@@ -1,0 +1,16 @@
+.git
+.github
+.claude
+.vscode
+.venv
+.env
+.env.*
+!.env.example
+__pycache__
+*.pyc
+.pytest_cache
+work
+*.db
+tests
+balk
+BALK-HackBrasil

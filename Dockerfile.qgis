@@ -1,0 +1,12 @@
+# OPCIONAL: imagem com o QGIS (só para conferir o motor Python contra o QGIS com ENGINE=qgis e para o vídeo).
+# Não é a imagem de produção (use o Dockerfile, bem menor). STATUS: não construída nesta máquina (sem Docker).
+# Confirme a tag LTR no Docker Hub (qgis/qgis). Uso: docker build -f Dockerfile.qgis -t balk-qgis .
+FROM qgis/qgis:ltr
+ENV QT_QPA_PLATFORM=offscreen PYTHONUNBUFFERED=1 ENGINE=qgis
+WORKDIR /srv/balk
+COPY requirements.txt .
+RUN apt-get update && apt-get install -y --no-install-recommends python3-pip curl && rm -rf /var/lib/apt/lists/* \
+ && pip3 install --no-cache-dir --break-system-packages -r requirements.txt
+COPY . .
+EXPOSE 8000
+CMD ["python3", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]

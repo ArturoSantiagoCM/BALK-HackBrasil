@@ -17,17 +17,23 @@ def node(name, type_, params, pos, version=1, **extra):
 
 
 def http(name, method, path, pos, body=None, **extra):
-    p = {"method": method, "url": f"{API}{path}", "options": {}}
+    # A chave da API (BALK_API_KEY) vai por credencial "Header Auth" criada na interface do n8n (nome do header: X-API-Key).
+    p = {"method": method, "url": f"{API}{path}", "options": {}, "authentication": "genericCredentialType",
+         "genericAuthType": "httpHeaderAuth"}
     if body is not None:
         p.update({"sendBody": True, "specifyBody": "json", "jsonBody": body})
-    return node(name, "httpRequest", p, pos, 4.2, onError="continueErrorOutput", **extra)
+    return node(name, "httpRequest", p, pos, 4.2, onError="continueErrorOutput",
+                credentials={"httpHeaderAuth": {"id": "", "name": "BALK API key"}}, **extra)
 
 
 def erro(pos):
     # Aviso à equipe quando uma chamada ao FastAPI falhar (URL do aviso vem de uma variável de ambiente).
-    return http("Avisar equipe (erro)", "POST", "", pos).copy() | {
+    n = http("Avisar equipe (erro)", "POST", "", pos).copy() | {
         "parameters": {"method": "POST", "url": "={{$env.ALERT_WEBHOOK_URL}}", "sendBody": True,
                        "specifyBody": "json", "jsonBody": '={"text": "BALK: falha em " + $workflow.name}', "options": {}}}
+    n.pop("credentials", None)  # a chave da API do BALK nunca vai para o webhook de aviso
+    n.pop("onError", None)
+    return n
 
 
 def wire(*links):

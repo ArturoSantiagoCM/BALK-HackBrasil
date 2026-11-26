@@ -24,12 +24,20 @@ def render_map(work_dir: Path, lat: float, lon: float, ranking: list[Viability],
     fig, axes = plt.subplots(2, 3, figsize=(13, 8), dpi=100)
     ax = axes.ravel()
 
+    def outline(a):  # contorno do talhão desenhado ou, sem ele, o círculo de 150 m
+        xy = P.extra.get("polygon_xy")
+        if xy:
+            a.add_patch(plt.Polygon([(P.point[0] + x, P.point[1] + y) for x, y in xy], closed=True, fill=False,
+                                    color="black", lw=1.5, ls="--"))
+        else:
+            a.add_patch(plt.Circle(P.point, 150, fill=False, color="black", lw=1.5, ls="--"))
+
     def draw(a, data, title, cmap, vmin=None, vmax=None):
         if data is None:
             a.axis("off")
             return
         im = a.imshow(data, cmap=cmap, vmin=vmin, vmax=vmax, extent=extent)
-        a.add_patch(plt.Circle(P.point, 150, fill=False, color="black", lw=1.5, ls="--"))
+        outline(a)
         a.set_title(title, fontsize=10)
         a.set_xticks([]), a.set_yticks([])
         plt.colorbar(im, ax=a, fraction=0.046)
@@ -42,7 +50,7 @@ def render_map(work_dir: Path, lat: float, lon: float, ranking: list[Viability],
         k = int(np.nanmax(zones))
         im = ax[3].imshow(zones, cmap=ListedColormap(["#d73027", "#fee08b", "#1a9850", "#4575b4", "#8073ac"][:k]),
                           vmin=0.5, vmax=k + 0.5, extent=extent)
-        ax[3].add_patch(plt.Circle(P.point, 150, fill=False, color="black", lw=1.5, ls="--"))
+        outline(ax[3])
         ax[3].set_title("Zonas de manejo (1 = mais fraca)", fontsize=10)
         ax[3].set_xticks([]), ax[3].set_yticks([])
         plt.colorbar(im, ax=ax[3], fraction=0.046, ticks=range(1, k + 1))

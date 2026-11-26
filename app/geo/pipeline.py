@@ -8,7 +8,7 @@ import numpy as np
 
 from app import config
 from app.geo import indices, relations, terrain
-from app.geo.raster import circle_mask, read_stack
+from app.geo.raster import circle_mask, polygon_mask, read_stack
 from app.models import SpatialStats
 
 RADIUS_M = 150.0  # círculo de análise (~7 ha)
@@ -41,6 +41,9 @@ class Products:
     rough: Optional[np.ndarray] = None
     cold: Optional[np.ndarray] = None
     zones: Optional[np.ndarray] = None
+    erosion: Optional[np.ndarray] = None
+    ref_mean: Optional[float] = None  # referência de NDVI (média da cena recortada) e seu desvio
+    ref_std: Optional[float] = None
     extra: dict = field(default_factory=dict)
 
 
@@ -56,7 +59,8 @@ def _mean(a: Optional[np.ndarray], mask: np.ndarray) -> Optional[float]:
 
 
 def run(work_dir: Path, lat: float, lon: float, rain_month_mm: Optional[float] = None,
-        radius_m: float = RADIUS_M) -> tuple[SpatialStats, Products]:
+        radius_m: float = RADIUS_M, polygon: Optional[dict] = None) -> tuple[SpatialStats, Products]:
+    """`polygon` (GeoJSON do talhão, EPSG:4326): a análise usa o talhão de verdade; sem ele, o círculo de 150 m (~7 ha)."""
     work_dir = Path(work_dir)
     cfg = geo_cfg()
     S = read_stack(work_dir, lat, lon)
@@ -69,7 +73,11 @@ def run(work_dir: Path, lat: float, lon: float, rain_month_mm: Optional[float] =
     nir_s = S["nir08"] if S["nir08"] is not None else nir  # NDMI/NDRE padrão usam B8A (nir08, 20 m); sem ela, B08
     ndmi = indices.apply_mask(indices.ndmi(nir_s, S["swir"]), mask) if S["swir"] is not None else None
     ndre = indices.apply_mask(indices.ndre(nir_s, S["rededge"]), mask) if S["rededge"] is not None else None
-    aoi = circle_mask(tr, shape, point, radius_m)
+    aoi = polygon_mask(tr, shape, S["crs"], polygon) if polygon else circle_mask(tr, shape, point, radius_m)
+    if polygon:  # o ponto de referência (aspecto, direção da área fraca) passa a ser o centro do talhão
+        ys_, xs_ = np.nonzero(aoi)
+        if xs_.size:
+            point = (float(tr.c + (xs_.mean() + 0.5) * tr.a), float(tr.f + (ys_.mean() + 0.5) * tr.e))
 
     slope = aspect = tpi = rough = cold = None
     if S["dem"] is not None:
@@ -123,10 +131,22 @@ def run(work_dir: Path, lat: float, lon: float, rain_month_mm: Optional[float] =
         clay_pct=clay_pct, ph=ph, elevation_m=_mean(S["dem"], aoi) if S["dem"] is not None else None,
         area_ha=round(float(aoi.sum()) * cell_x * cell_y / 10000.0, 2), scene_date=meta.get("scene_date"),
         engine="python", ndvi_ref_mean=ref_mean, ndvi_ref_std=ref_std,
+        ndvi_median=_f(np.median(nd_in)) if nd_in.size else None,
+        ndvi_p10=_f(np.percentile(nd_in, 10)) if nd_in.size else None,
+        ndvi_p90=_f(np.percentile(nd_in, 90)) if nd_in.size else None,
+        valid_fraction=round(float(nd_in.size) / float(aoi.sum()), 3) if aoi.sum() else None,
         ndmi_mean=ndmi_mean, ndre_mean=_mean(ndre, aoi), moisture_class=relations.moisture_class(
             ndmi_mean, cfg["ndmi_seco"], cfg["ndmi_umido"]),
         aspect_deg=asp_deg, aspect_label=asp_lbl, tpi_min=_f(np.nanmin(tpi[aoi])) if tpi is not None and np.isfinite(tpi[aoi]).any() else None,
         roughness_mean=_mean(rough, aoi), frost_relief_offset_c=offset, erosion_index=eros, erosion_class=eros_cls,
         weak_area_pct=weak["pct"], weak_area_dir=weak["dir"], zones=zones or None)
-    return stats, Products(ndvi=ndvi, aoi=aoi, transform=tr, point=point, ndmi=ndmi, ndre=ndre, slope=slope,
-                           aspect=aspect, tpi=tpi, rough=rough, cold=cold, zones=labels if zones else None)
+    extra = {}
+    if polygon:  # contorno do talhão em metros relativos ao centro, para os mapas
+        from pyproj import Transformer as _T
+        g = polygon.get("geometry") if polygon.get("type") == "Feature" else polygon
+        tf = _T.from_crs(4326, S["crs"], always_xy=True)
+        extra["polygon_xy"] = [(tf.transform(x, y)[0] - point[0], tf.transform(x, y)[1] - point[1]) for x, y in g["coordinates"][0]]
+    return stats, Products(ndvi=ndvi, aoi=aoi, transform=tr, point=point, extra=extra, ndmi=ndmi, ndre=ndre, slope=slope,
+                           aspect=aspect, tpi=tpi, rough=rough, cold=cold, zones=labels if zones else None,
+                           erosion=relations.erosion_field(slope, ndvi, aoi, clay_pct, rain_month_mm, cfg["erosao"]),
+                           ref_mean=ref_mean, ref_std=ref_std)

@@ -61,8 +61,8 @@ T = {
                                "a chuva lava o produto e o vento espalha a calda", "BALK: evite pulverizar nas proximas 72h. Vento ate {vento_max}km/h, chuva {chuva_prob_max}%."),
   ("geada", None): ("Geada {dia}, das {ini}h às {fim}h. Proteja a lavoura sensível.", "Mínima prevista de {tmin}°C.",
                     "a temperatura fica abaixo de {limite}°C", "BALK: GEADA {dia} {ini}h-{fim}h, min {tmin}C. Proteja culturas sensiveis."),
-  ("estresse", None): ("Vale conferir a lavoura nesta semana.", "O vigor da área está abaixo do esperado (z = {z}).",
-                       "o NDVI atual é bem menor que a referência", "BALK: vale conferir a lavoura. Vigor abaixo do esperado (z {z})."),
+  ("estresse", None): ("Vale conferir a lavoura nesta semana.", "A vegetação da área está bem mais fraca do que o esperado para a época.",
+                       "a vegetação vista pelo satélite está bem mais fraca que a referência", "BALK: vale conferir a lavoura. A vegetacao esta mais fraca que o esperado."),
   ("colheita", "janela"): ("Janela de colheita: {horas} horas secas a partir de {dia}, {ini}h.", "Chuva esperada de {chuva_mm} mm no período.",
                            "pouca chuva permite colher sem perda", "BALK: colheita {dia} {ini}h, {horas}h secas. Chuva {chuva_mm}mm."),
   ("colheita", "sem_janela"): ("Sem {horas} horas secas nos próximos 3 dias. Adie a colheita.", "A chuva prevista passa do limite em todas as janelas.",
@@ -77,8 +77,8 @@ T = {
                                "la lluvia lava el producto y el viento lo dispersa", "BALK: evite fumigar 72h. Viento hasta {vento_max}km/h, lluvia {chuva_prob_max}%."),
   ("geada", None): ("Helada {dia}, de {ini} a {fim} h. Proteja el cultivo sensible.", "Mínima prevista de {tmin}°C.",
                     "la temperatura queda bajo {limite}°C", "BALK: HELADA {dia} {ini}-{fim}h, min {tmin}C. Proteja cultivos sensibles."),
-  ("estresse", None): ("Conviene revisar el cultivo esta semana.", "El vigor del área está bajo lo esperado (z = {z}).",
-                       "el NDVI actual es menor que la referencia", "BALK: revise el cultivo. Vigor bajo lo esperado (z {z})."),
+  ("estresse", None): ("Conviene revisar el cultivo esta semana.", "La vegetación del área está bastante más débil de lo esperado para la época.",
+                       "la vegetación vista por el satélite está más débil que la referencia", "BALK: revise el cultivo. La vegetacion esta mas debil de lo esperado."),
   ("colheita", "janela"): ("Ventana de cosecha: {horas} horas secas desde {dia}, {ini} h.", "Lluvia esperada de {chuva_mm} mm en el período.",
                            "poca lluvia permite cosechar sin pérdida", "BALK: cosecha {dia} {ini}h, {horas}h secas. Lluvia {chuva_mm}mm."),
   ("colheita", "sem_janela"): ("Sin {horas} horas secas en los próximos 3 días. Posponga la cosecha.", "La lluvia prevista supera el límite en todas las ventanas.",
@@ -93,8 +93,8 @@ T = {
                                "rain washes the product off and wind spreads it", "BALK: avoid spraying 72h. Wind up to {vento_max}km/h, rain {chuva_prob_max}%."),
   ("geada", None): ("Frost {dia}, {ini} to {fim} h. Protect sensitive crops.", "Forecast low of {tmin}°C.",
                     "temperature drops below {limite}°C", "BALK: FROST {dia} {ini}-{fim}h, low {tmin}C. Protect sensitive crops."),
-  ("estresse", None): ("Worth checking the crop this week.", "Vigor in the area is below expected (z = {z}).",
-                       "current NDVI is well below the reference", "BALK: check your crop. Vigor below expected (z {z})."),
+  ("estresse", None): ("Worth checking the crop this week.", "Vegetation in the area is much weaker than expected for the season.",
+                       "vegetation seen by the satellite is well below the reference", "BALK: check your crop. Vegetation is weaker than expected."),
   ("colheita", "janela"): ("Harvest window: {horas} dry hours from {dia}, {ini} h.", "Expected rain of {chuva_mm} mm in the period.",
                            "little rain allows harvesting without loss", "BALK: harvest {dia} {ini}h, {horas}h dry. Rain {chuva_mm}mm."),
   ("colheita", "sem_janela"): ("No {horas} dry hours in the next 3 days. Postpone harvest.", "Forecast rain exceeds the limit in every window.",
@@ -110,11 +110,11 @@ T["es"][("geada", "relevo")] = ("Helada {dia}, de {ini} a {fim} h. Proteja el cu
 T["en"][("geada", "relevo")] = ("Frost {dia}, {ini} to {fim} h. Protect sensitive crops.", "Forecast low of {tmin_previsto}°C; at the lowest spot of the field it may reach {tmin}°C.",
                                 "cold air pools in the field's low spots", "BALK: FROST {dia} {ini}-{fim}h, low {tmin_previsto}C (low spot {tmin}C). Protect sensitive crops.")
 T["pt"][("estresse", "localizado")] = ("Vale conferir o lado {dir_txt} da lavoura nesta semana.", "{pct}% da área está mais fraca que o resto.",
-                                       "o NDVI dessa parte está bem abaixo do restante", "BALK: confira o lado {dir_txt} da lavoura. {pct}% da area esta mais fraca.")
+                                       "a vegetação dessa parte está bem mais fraca que o restante", "BALK: confira o lado {dir_txt} da lavoura. {pct}% da area esta mais fraca.")
 T["es"][("estresse", "localizado")] = ("Conviene revisar el lado {dir_txt} del cultivo esta semana.", "{pct}% del área está más débil que el resto.",
-                                       "el NDVI de esa parte está muy por debajo del resto", "BALK: revise el lado {dir_txt}. {pct}% del area esta mas debil.")
+                                       "la vegetación de esa parte está mucho más débil que el resto", "BALK: revise el lado {dir_txt}. {pct}% del area esta mas debil.")
 T["en"][("estresse", "localizado")] = ("Worth checking the {dir_txt} side of the crop this week.", "{pct}% of the area is weaker than the rest.",
-                                       "NDVI there is well below the rest of the field", "BALK: check the {dir_txt} side. {pct}% of the area is weaker.")
+                                       "vegetation there is much weaker than the rest of the field", "BALK: check the {dir_txt} side. {pct}% of the area is weaker.")
 DIRS = {"pt": {"N": "norte", "NE": "nordeste", "E": "leste", "SE": "sudeste", "S": "sul", "SO": "sudoeste", "O": "oeste",
                "NO": "noroeste", "C": "central"},
         "es": {"N": "norte", "NE": "noreste", "E": "este", "SE": "sudeste", "S": "sur", "SO": "suroeste", "O": "oeste",
@@ -123,17 +123,17 @@ DIRS = {"pt": {"N": "norte", "NE": "nordeste", "E": "leste", "SE": "sudeste", "S
                "O": "west", "NO": "northwest", "C": "central"}}
 TERRAIN = {  # linhas extras do relatório de WhatsApp (só aparecem se o dado existir)
     "pt": {"relevo": "Relevo: declividade média de {slope}%{asp}. Risco de erosão: {eros}.",
-           "asp": ", encosta voltada para {dir}", "zonas": "Zonas de manejo: {n}. A mais fraca ({pct}% da área) tem NDVI {ndvi}.",
+           "asp": ", encosta voltada para {dir}", "zonas": "A área tem {n} zonas de manejo. A mais fraca ocupa {pct}% e é por onde vale começar a olhar.",
            "agua": "Umidade da vegetação: {umid}. Chuva menos evaporação previstas em 72 h: {saldo} mm.",
            "agua_atencao": "Vale ficar de olho na água.", "baixada": "Baixada: no ponto mais frio a geada pode ser {off}°C mais forte.",
            "umid": {"baixa": "baixa", "media": "média", "alta": "alta"}, "eros": {"baixo": "baixo", "medio": "médio", "alto": "alto"}},
     "es": {"relevo": "Relieve: pendiente media de {slope}%{asp}. Riesgo de erosión: {eros}.",
-           "asp": ", ladera hacia {dir}", "zonas": "Zonas de manejo: {n}. La más débil ({pct}% del área) tiene NDVI {ndvi}.",
+           "asp": ", ladera hacia {dir}", "zonas": "El área tiene {n} zonas de manejo. La más débil ocupa {pct}% y es por donde conviene empezar a mirar.",
            "agua": "Humedad de la vegetación: {umid}. Lluvia menos evaporación prevista en 72 h: {saldo} mm.",
            "agua_atencao": "Conviene vigilar el agua.", "baixada": "Hondonada: en el punto más frío la helada puede ser {off}°C más fuerte.",
            "umid": {"baixa": "baja", "media": "media", "alta": "alta"}, "eros": {"baixo": "bajo", "medio": "medio", "alto": "alto"}},
     "en": {"relevo": "Terrain: average slope {slope}%{asp}. Erosion risk: {eros}.",
-           "asp": ", slope facing {dir}", "zonas": "Management zones: {n}. The weakest ({pct}% of the area) has NDVI {ndvi}.",
+           "asp": ", slope facing {dir}", "zonas": "The area has {n} management zones. The weakest takes {pct}% and is where to start looking.",
            "agua": "Vegetation moisture: {umid}. Forecast rain minus evaporation over 72 h: {saldo} mm.",
            "agua_atencao": "Keep an eye on water.", "baixada": "Low spot: at the coldest point frost may be {off}°C stronger.",
            "umid": {"baixa": "low", "media": "medium", "alta": "high"}, "eros": {"baixo": "low", "medio": "medium", "alto": "high"}},
@@ -156,6 +156,8 @@ class Report:
     crop_pref: Optional[str] = None
     map_url: Optional[str] = None
     only_weather: bool = False  # cadastro só por município: sem viabilidade do talhão
+    sem_imagem: bool = False  # satélite indisponível ou velho demais: só clima, e o relatório diz isso
+    plot_name: Optional[str] = None  # só preenchido quando o produtor tem mais de um talhão
     relations: Optional[dict] = None  # {"saldo_mm": float, "atencao_agua": bool} (clima x umidade da vegetação)
 
 
@@ -193,12 +195,17 @@ def terrain_lines(rep: "Report", lang: str) -> list[str]:
     if s is None:
         return []
     out = []
+    age = (rep.relations or {}).get("idade_cena_dias")
+    if age is not None and (rep.relations or {}).get("cena_antiga"):
+        out.append({"pt": f"Atenção: a imagem de satélite é de {age} dias atrás, então a confiança é menor.",
+                    "es": f"Atención: la imagen de satélite es de hace {age} días, así que la confianza es menor.",
+                    "en": f"Note: the satellite image is {age} days old, so confidence is lower."}[lang])
     if s.slope_mean_pct is not None and s.erosion_class:
         asp = T_["asp"].format(dir=DIRS[lang][s.aspect_label]) if s.aspect_label else ""
         out.append(T_["relevo"].format(slope=fmt(round(s.slope_mean_pct, 1)), asp=asp, eros=T_["eros"][s.erosion_class]))
     if s.zones and len(s.zones) > 1:
         weak = s.zones[0]
-        out.append(T_["zonas"].format(n=len(s.zones), pct=fmt(weak["share_pct"]), ndvi=fmt(weak["ndvi_mean"])))
+        out.append(T_["zonas"].format(n=len(s.zones), pct=fmt(weak["share_pct"])))
     if s.moisture_class and rep.relations and rep.relations.get("saldo_mm") is not None:
         line = T_["agua"].format(umid=T_["umid"][s.moisture_class], saldo=fmt(rep.relations["saldo_mm"]))
         out.append(line + (" " + T_["agua_atencao"] if rep.relations.get("atencao_agua") else ""))
@@ -211,14 +218,21 @@ def _key(alert: Alert) -> tuple:
     return alert.type, alert.evidence.get("modo")
 
 
-def render_alert(alert: Alert, channel: str, lang: str = "pt") -> str:
+PLOT_LABEL = {"pt": "Talhão", "es": "Lote", "en": "Plot"}
+
+
+def render_alert(alert: Alert, channel: str, lang: str = "pt", plot: Optional[str] = None) -> str:
+    """`plot`: nome do talhão, usado quando o produtor tem mais de um ("Talhão Fundo: Pulverize hoje...")."""
     l1, l2, why, sms = T[lang][_key(alert)]
     f = _fields(alert.evidence, lang)
     if channel == "sms":
         body = sms.format(**f)
+        if plot:
+            body = body.replace("BALK:", f"BALK {plot[:12].strip()}:", 1)
         return to_sms(body, 160 - len(SMS_SUFFIX)) + SMS_SUFFIX
     lw, lc = LBL[lang]
-    return (f"{l1.format(**f)}\n{l2.format(**f)}\n\n{lw}: {why.format(**f)}.\n"
+    head = f"{PLOT_LABEL[lang]} {plot}: " if plot else ""
+    return (f"{head}{l1.format(**f)}\n{l2.format(**f)}\n\n{lw}: {why.format(**f)}.\n"
             f"{lc}: {CONF[lang][alert.confidence]}.")
 
 
@@ -231,6 +245,11 @@ def _orientation(v: Viability, lang: str) -> str:
 
 def render_report(rep: Report, channel: str, lang: str = "pt") -> str:
     crops = CROPS[lang]
+    if rep.sem_imagem:  # estado explícito "sem imagem adequada": não se apresenta dado velho nem simulado como atual
+        msg = {"pt": "Não consegui uma imagem de satélite recente e boa da sua área agora (nuvem ou falha). Hoje só envio avisos de clima, com menos confiança. Tento de novo amanhã.",
+               "es": "No conseguí una imagen de satélite reciente y buena de su área ahora (nubes o falla). Hoy solo envío avisos de clima, con menos confianza. Intento de nuevo mañana.",
+               "en": "I could not get a recent, good satellite image of your area right now (clouds or outage). Today I only send weather alerts, with lower confidence. I will try again tomorrow."}[lang]
+        return to_sms("BALK: sem imagem de satelite boa agora. So avisos de clima hoje. Tento amanha.", 160) if channel == "sms" else msg
     if rep.only_weather or not rep.ranking:
         msg = {"pt": "BALK: cadastro por município recebe alertas de clima. Para a análise da lavoura, envie o pin de localização pelo WhatsApp.",
                "es": "BALK: el registro por municipio recibe alertas de clima. Para el análisis del lote, envíe la ubicación por WhatsApp.",
@@ -241,9 +260,13 @@ def render_report(rep: Report, channel: str, lang: str = "pt") -> str:
     if channel == "sms":
         short = SHORT[lang].get(top.limiting_factor, SHORT[lang]["_ok"]) if top.factors.get(top.limiting_factor, 0) < 0.8 \
             else SHORT[lang]["_ok"]
-        return to_sms(f"BALK: {crops[top.crop]} nota {top.score}/100. Limite: {lim}. {short}", 160)
+        tag = f"BALK {rep.plot_name[:12].strip()}" if rep.plot_name else "BALK"
+        return to_sms(f"{tag}: {crops[top.crop]} nota {top.score}/100. Limite: {lim}. {short}", 160)
     head = {"pt": "*BALK: viabilidade da sua área*", "es": "*BALK: viabilidad de su área*",
             "en": "*BALK: your field's viability*"}[lang]
+    if rep.plot_name:
+        head = {"pt": f"*BALK: viabilidade do talhão {rep.plot_name}*", "es": f"*BALK: viabilidad del lote {rep.plot_name}*",
+                "en": f"*BALK: viability of plot {rep.plot_name}*"}[lang]
     area = {"pt": "Área analisada: {a} ha (cena de satélite de {d}).", "es": "Área analizada: {a} ha (escena de {d}).",
             "en": "Area analysed: {a} ha (satellite scene of {d})."}[lang]
     lines = [head, area.format(a=fmt(rep.stats.area_ha), d=rep.stats.scene_date or "-")]
@@ -277,10 +300,11 @@ def render_logistics(plan: dict, channel: str, lang: str = "pt") -> str:
     return to_sms(text, 160) if channel == "sms" else text
 
 
-def render(item: Union[Alert, Report, dict], channel: str, lang: str = "pt") -> str:
-    """Alerta ou relatório -> texto final do canal (WhatsApp completo; SMS até 160 caracteres, sem acento)."""
+def render(item: Union[Alert, Report, dict], channel: str, lang: str = "pt", plot: Optional[str] = None) -> str:
+    """Alerta ou relatório -> texto final do canal (WhatsApp completo; SMS até 160 caracteres, sem acento).
+    `plot` = nome do talhão, quando o produtor tem mais de um."""
     if isinstance(item, Alert):
-        return render_alert(item, channel, lang)
+        return render_alert(item, channel, lang, plot)
     if isinstance(item, Report):
         return render_report(item, channel, lang)
     return render_logistics(item, channel, lang)

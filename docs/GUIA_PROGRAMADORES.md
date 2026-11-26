@@ -21,13 +21,15 @@ O BALK baixa os dados do lugar (satélite, relevo, solo, clima), calcula, e devo
 Windows PowerShell, Python 3.12.
 
 ```powershell
-cd C:\Users\Estudo\Desktop\BALK
+cd <pasta-do-projeto>
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 $env:DATA_MODE = "simulado"
 uvicorn app.main:app --reload
 ```
+
+Linux ou macOS: `python3.12 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt && DATA_MODE=simulado uvicorn app.main:app --reload`.
 
 Abra `http://localhost:8000` (simulador) e `http://localhost:8000/docs` (todas as rotas, com botão "Try it out").
 
@@ -54,8 +56,12 @@ app/
   alerts/          M5  4 alertas e silêncio
   message/         M6  textos pt/es/en, SMS de 160 caracteres, validador, IA opcional
   logistics/       M7  rota, melhor hora de saída, previsão da cooperativa
+  report/          RELATÓRIO DETALHADO: dados, imagens estilo QGIS, a conta da nota e o porquê (link na mensagem)
   service.py       junta tudo para um produtor (analyze_producer)
-  main.py          rotas finas do FastAPI
+  main.py          rotas finas do FastAPI (create_app: internas, públicas, demo)
+  security.py      chave de API, limite de requisições, assinatura Meta e Twilio, máscara de telefone
+  webhooks.py      entrada real do WhatsApp (Meta) e do SMS (Twilio)
+  cli.py           operação: check, backup, purge-reports, export-producer, delete-producer (LGPD)
 demo/              simulador web (index.html), coop.csv, destinos.json
 n8n/               4 fluxos (JSON) + build_flows.py que os gera
 tests/             um arquivo de teste por módulo
@@ -234,7 +240,7 @@ python -m pytest -q -x --lf                      # para no primeiro erro / só o
 python check_apis.py                             # as APIs externas estão no ar? (latência)
 ```
 
-Resultado esperado hoje: 110 passam, 3 são ignorados (equivalência com QGIS, que só roda onde o QGIS existe).
+Resultado esperado hoje: 157 passam, 3 são ignorados (equivalência com QGIS, que só roda onde o QGIS existe). A suíte inteira leva cerca de 4 minutos (gera as imagens dos relatórios); para o dia a dia, rode só o arquivo que você mexeu.
 
 **Como os testes são organizados**
 
@@ -327,3 +333,104 @@ Agentes prontos em `.claude/agents/`: `python-pro`, `fastapi-pro`, `test-automat
 ## 11. Glossário
 
 **NDVI** vigor da vegetação · **NDMI** umidade da vegetação · **NDRE** clorofila relativa · **SCL** classificação de cena do Sentinel-2 (nuvem, sombra) · **DEM** modelo de elevação · **TPI** posição no relevo (negativo = baixada) · **Aspecto** direção para onde a encosta desce · **GDD** graus-dia · **Delta T** diferença entre temperatura e bulbo úmido (qualidade da pulverização) · **ET0** evapotranspiração de referência · **STAC** catálogo de imagens de satélite · **UTM** coordenadas em metros · **[H]** hipótese a validar com agrônomo · **Silêncio** regras que limitam a frequência dos alertas.
+
+---
+
+## 12. O relatório detalhado (o link que vem depois da mensagem)
+
+Toda mensagem de WhatsApp (relatório e alertas) termina com `Detalhes, mapas e o porquê: https://.../r/<token>`. A página mostra, em ordem:
+o que enviamos · **os dados coletados** (fonte, data, resolução, valor na sua área) · **mapas estilo SIG** (NDVI, NDMI, declividade com setas, posição no relevo, zonas, área fraca, erosão) ·
+**a conta da nota** fator por fator (valor, faixa ideal, nota, peso, **fonte e status de cada faixa**) · **cada alerta** com os critérios da regra, o valor previsto e se atendeu ·
+como as camadas se combinam · o esquema "como o BALK pensou" · limites · fontes e atribuições. Há botão para baixar tudo em **um arquivo** (`/r/<token>/baixar`).
+
+**Como funciona**
+```
+analyze_producer ──> report.explain.build(...)  -> dict JSON (dados, culturas, alertas, clima, legendas)
+                 ──> db.create_report(...)      -> token aleatório (secrets.token_urlsafe), validade REPORT_TTL_DAYS
+                 ──> with_link(mensagem, link)  -> link no fim de cada mensagem (SMS: só com SMS_INCLUDE_LINK=1 e se couber)
+GET /r/<token> ──> report.ensure_images (gera os PNGs se faltarem) ──> report.page.render_page(...)  -> HTML
+```
+- O primeiro relatório (cadastro) já gera as imagens; o alerta do dia só gera na primeira visita (economiza tempo no envio em lote).
+- `report/explain.py` **não decide nada**: só mostra, com os números, o que `rules.yaml` e `crops.yaml` já decidiram (`explain_crop` é a mesma conta de `score_crop`; há teste garantindo que a conta mostrada bate com a nota enviada).
+- `report/images.py` desenha as imagens com matplotlib (escala de 200 m, seta do norte, círculo da área, eixos em metros a partir do ponto, legenda com unidade e estatística da área). `mapa.png` é o resumo de 6 painéis que vai junto da mensagem no WhatsApp.
+- `report/page.py` gera um HTML único, leve, sem JavaScript e sem recursos externos.
+
+**Privacidade e segurança do link:** token de 22 caracteres aleatórios; mesmo 404 para "não existe" e "expirou"; limite de 60 requisições por minuto por IP; cabeçalhos `noindex`, `no-referrer`, `Content-Security-Policy`; a página **não mostra o telefone** e arredonda as coordenadas (~1 km); nomes de imagem validados por regex. Quem tem o link vê o relatório: trate-o como pessoal.
+
+**Dados simulados são avisados:** se o clima, o histórico ou o pacote do satélite forem simulados, a página mostra um aviso vermelho e o diagrama também. Isso evita mostrar demonstração como se fosse a lavoura do produtor.
+
+**Adaptar**
+- *Nova seção na página:* acrescente o dado em `explain.build` (JSON) e o bloco HTML em `page.render_page`. Teste em `tests/test_relatorio.py`.
+- *Nova imagem:* função em `images.py` + entrada em `render_all` + legenda em `explain.image_captions` (título, como ler, conclusão com números).
+- *Outro idioma da página:* os textos estão em português em `explain.py` e `page.py`; extraia para dicionários por idioma como em `message/templates.py`.
+- *Mudar a validade do link:* `REPORT_TTL_DAYS`. Apagar vencidos: `python -m app.cli purge-reports`.
+
+## 13. Rodar de verdade (resumo; o passo a passo está em `docs/OPERACAO.md`)
+
+| Quero | Faço |
+|---|---|
+| ver o que falta | `python -m app.cli check` |
+| subir em produção | `BALK_ENV=production` + `BALK_API_KEY` + `PUBLIC_BASE_URL` (https). O servidor **recusa subir** com pendências e passa a esconder simulador e `/docs` |
+| chamar rotas internas | header `X-API-Key: <chave>` (ou `Authorization: Bearer`) em `/conversation`, `/ingest/producers`, `/analyze/{id}`, `/alerts/log`, `/logistics/plan`, `/cooperative/{id}/forecast`, `/producers`, `/jobs/daily`, `/jobs/purge`, `DELETE /producers/{id}`, `/ready` |
+| receber WhatsApp | webhook `https://dominio/webhooks/whatsapp` (verificação GET + POST assinado com `X-Hub-Signature-256`; idempotente pelo id da mensagem) |
+| receber SMS | webhook `https://dominio/sms/inbound` (assinatura `X-Twilio-Signature`; resposta em TwiML) |
+| enviar alertas do dia | `POST /jobs/daily` às 06:05 (cron ou n8n); no WhatsApp o envio proativo usa o **template** de `WHATSAPP_TEMPLATE_NAME` |
+| apagar os dados de um produtor (LGPD) | `python -m app.cli delete-producer <telefone>` ou `DELETE /producers/{id}` |
+| backup | `python -m app.cli backup arquivo.db` |
+
+Testes de segurança: `tests/test_seguranca.py` (chave, modo production, assinaturas, idempotência, LGPD) e `tests/test_dados_reais.py` (caminho de dados reais sem internet).
+
+## 15. Governança de dados, entrega e talhões (trazidos da comparação com a SPEC de um colega)
+
+Detalhe e justificativa: `docs/COMPARACAO_SPEC_AMIGO.md`. Resumo de onde mexer:
+
+| Assunto | Arquivos | Como testar / adaptar |
+|---|---|---|
+| **Consentimento** por finalidade, versão do texto, origem e revogação | `consent.yaml`, `db.py` (`consents`), `ingest/conversation.py` (`grant`) | Mudou o texto? Suba `versao` em `consent.yaml`. `tests/test_spec_amigo.py::test_aceite_grava_finalidades...` |
+| **Opt-in** de cooperativa (CSV) em produção | `ingest/csv_import.py`, `config.csv_requires_optin` | `CSV_REQUIRES_OPTIN=1`. Convite enviado por `main.py` (`/ingest/producers`) |
+| **Sucessor** (só leitura) | `ingest/conversation.py` (`_handle_contact`), `db.py` (`contacts`) | Produtor escreve `SUCESSOR 5565999990000`; a pessoa aceita sozinha. Para dar mais poder ao sucessor, mude só `_handle_contact` |
+| **Histórico** `/h/<token>` | `main.py`, `report/page.py` (`render_history`), `db.py` (`links`) | `HISTORICO` na conversa gera o link |
+| **Entrega** com registro, repetição e reserva por SMS | `delivery.py`, `db.py` (`messages`), `webhooks.py` | `deliver(...)` é o único caminho de envio do ciclo diário e do webhook; trocar a política de repetição é `RETRIES`/`BACKOFF_S` |
+| **Telefone normalizado** | `db.norm_phone` | todo acesso por telefone passa por ele (`5565...` do WhatsApp e `+55 65 ...` do CSV viram o mesmo) |
+| **Sem imagem adequada** / cena velha | `service.py`, `rules.yaml` (`satelite`), `message/templates.py` | `satelite.descartar_apos_dias` e `aviso_apos_dias` |
+| **Limite diário** | `alerts/silence.py`, `rules.yaml` (`silencio.max_por_dia`) | |
+| **Talhões desenhados** | `plots.py` (`check_plot_input`: a validação única das duas portas), `db.py` (`plots`), `geo/raster.py` (`polygon_mask`), `geo/pipeline.py` (`polygon=`), `main.py` (`POST /plots`), `site_api.py` (`/api/plots`) | Limites em `rules.yaml` (`talhoes`). Vários talhões: ver seção 16 |
+| **Backtest** | `backtest.py`, `cli.py` | `python -m app.cli backtest docs/BACKTEST.md` (internet). Testes sem rede em `tests/test_backtest.py` |
+| **Exclusão e exportação (LGPD)** | `db.delete_producer`, `cli.py` | a exclusão deixa só `audit_log` (hash do telefone, sem dado pessoal) |
+
+**Armadilha conhecida:** `norm_phone` mantém só dígitos; telefone sem dígito vira `"+"` e colide. Valide telefones na entrada (o CSV já exige 8 dígitos).
+
+## 16. O site, vários talhões e o histórico por safra
+
+**Identidade = número de WhatsApp verificado.** Sem senha. Fluxo: `POST /api/signup/start` (nome, telefone e os **dois** aceites, marcados separadamente) →
+código de 6 dígitos pelo WhatsApp (SMS se falhar) → `POST /api/signup/verify` → conta `AGUARDA_TALHAO`, consentimentos gravados com origem `site` e a versão do texto,
+sessão aberta → o produtor desenha os talhões → `POST /api/finish` (ATIVO) → um relatório por talhão no WhatsApp.
+
+| Peça | Arquivo | Notas |
+|---|---|---|
+| Código, sessão, anti-CSRF | `app/auth.py` | Código via `secrets`, guardado só como **HMAC** com `BALK_AUTH_SECRET`. 10 min, uso único, 5 tentativas, 3 por hora por telefone, 10 por hora por IP, 60 s entre pedidos. Sessão = token aleatório (guardado só como hash) em cookie `balk_session` HttpOnly + SameSite=Lax (+ Secure em https). Chamadas que alteram dados exigem `Origin` do mesmo site |
+| Tabelas | `app/db_site.py`, `app/db.py` | `verifications`, `sessions`, `magic_links`, `farms`, `seasons`, `observations` |
+| API | `app/site_api.py` (`/api/*`, `/m/{token}`) | Toda rota de conta confere o dono (`producer_id` da sessão). A geometria é validada no servidor mesmo que o navegador já tenha validado |
+| Link do WhatsApp | `MAPA` na conversa → `/m/{token}` | Uso único, 30 min. **O GET só mostra uma página; quem gasta o link é o POST** (o robô de pré-visualização do WhatsApp faz GET e não pode gastá-lo) |
+| Páginas | `web/` | Sem build. `web/vendor/`: MapLibre GL 6.19 (ESM), Terra Draw, Turf (licenças em `web/vendor/LICENSES.md`). CSP `script-src 'self'`; imagens do mapa só do provedor de `MAP_TILES_URL` |
+| Fundo do mapa | `config.map_tiles()` | OSM por padrão (demo). Para escala, trocar por provedor com contrato (decisão humana, ver `OPERACAO.md`) |
+
+**Vários talhões** (`service.py`): `analyze_producer` roda `_analyze_unit` para cada talhão (do maior ao menor). Cada um tem a sua pasta de dados `work/{id}-p{plot}`,
+o seu relatório e as suas mensagens; o nome do talhão só entra no texto quando há 2 ou mais. O resultado mantém `stats`, `ranking` e `report_url` do **maior** talhão
+(compatibilidade) e traz todos em `units`. Regras de silêncio: 72 h **por talhão** (`alert_log.plot_id`); cota diária e semanal **por contato**, somando os talhões
+(`already` em `evaluate`); a pulverização, que só depende do clima, sai uma vez para talhões a menos de 5 km (`SAME_WEATHER_KM`); a geada é por talhão (o relevo muda a mínima).
+
+**Safras e observações:** `ensure_season` abre a safra do talhão quando há cultura e data de plantio (trocar a cultura fecha a anterior); `save_observation` grava uma linha por
+cena nova (`UNIQUE(produtor, talhão, data da cena, fonte)`); `observation_history` entrega a referência de NDVI ao alerta de estresse: safras anteriores do mesmo talhão e cultura na mesma
+fase do ciclo (±15 dias, mínimo 3 pontos, confiança **média**) ou a série recente da safra atual (mínimo 4, confiança **baixa**). `PRODUTIVIDADE 3,4 [talhão]` no WhatsApp e
+`POST /api/seasons/{id}/close` fecham a safra com a produtividade.
+
+**Testar:** `python -m pytest tests/test_site.py -q`. No navegador: iniciar o servidor em dev e abrir `/app/cadastro.html`; o código aparece em `GET /outbox` (só fora de produção).
+**Limite conhecido:** o desenho foi conferido por clique no navegador do desktop; a edição de vértices por toque em celular real não foi testada.
+
+## 14. Validação das regras na web
+
+`docs/VALIDACAO_REGRAS.md` lista, regra por regra, o que a literatura e as fontes oficiais dizem, o que foi **confirmado**, **ajustado** (e para quê) e o que segue **premissa**. Os mesmos status aparecem
+em `crops.yaml` (blocos `fontes` e `validacao`), em `rules.yaml` (`validacao_regras`) e na página de relatório, ao lado de cada fator e alerta. **Não é validação por agrônomo.**
+
+Para **acrescentar uma faixa nova com fonte:** edite `crops.yaml` (`fatores`), cadastre a fonte em `fontes:` (id, título, link), aponte-a em `validacao:` (status e id) e atualize o `docs/VALIDACAO_REGRAS.md`. O teste `test_crops_yaml_tem_ph_e_geadas_validos_em_todas_as_culturas` e o do relatório (`toda faixa mostra de onde vem`) quebram se faltar a fonte.

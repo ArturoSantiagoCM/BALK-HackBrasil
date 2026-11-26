@@ -67,16 +67,43 @@ def _down(level: str) -> str:
     return {"alta": "media", "media": "baixa", "baixa": "baixa"}[level]
 
 
-def score_crop(stats: SpatialStats, climate: Optional[dict], crop_cfg: dict, planting_month: Optional[int] = None,
-               today: Optional[datetime] = None) -> Viability:
-    today = today or datetime.now()
+FACTOR_LABEL = {"temp_media_c": ("Temperatura média do ciclo", "°C"), "chuva_mm": ("Chuva do ciclo", "mm"),
+                "declive_pct": ("Declividade média", "%"), "argila_pct": ("Argila no solo", "%"), "ph": ("pH do solo", ""),
+                "geadas_ciclo": ("Dias de geada no ciclo (histórico)", "dias"),
+                "ndvi_regular": ("Irregularidade do NDVI na área (desvio)", "")}
+
+
+def factor_values(stats: SpatialStats, climate: Optional[dict], crop_cfg: dict,
+                  planting_month: Optional[int] = None) -> dict:
+    """Valor medido de cada fator para esta cultura (None = dado ausente). Usado pela nota e pela página de relatório."""
     temp = chuva = geadas = None
     if climate:
         start = planting_month or crop_cfg["mes_plantio_usual"]
         temp, chuva = season_stats(climate, start, crop_cfg["ciclo_meses"])
         geadas = season_frost_days(climate, start, crop_cfg["ciclo_meses"])
-    values = {"temp_media_c": temp, "chuva_mm": chuva, "declive_pct": stats.slope_mean_pct,
-              "argila_pct": stats.clay_pct, "ph": stats.ph, "geadas_ciclo": geadas, "ndvi_regular": stats.ndvi_std}
+    return {"temp_media_c": temp, "chuva_mm": chuva, "declive_pct": stats.slope_mean_pct,
+            "argila_pct": stats.clay_pct, "ph": stats.ph, "geadas_ciclo": geadas, "ndvi_regular": stats.ndvi_std}
+
+
+def explain_crop(stats: SpatialStats, climate: Optional[dict], crop_cfg: dict, planting_month: Optional[int] = None) -> list[dict]:
+    """Uma linha por fator: valor, unidade, faixa a/b/c/d, nota 0..1 e peso. É a mesma conta de score_crop, mostrada por inteiro."""
+    values = factor_values(stats, climate, crop_cfg, planting_month)
+    rows = []
+    for f in FACTORS:
+        if f not in crop_cfg["fatores"]:
+            continue
+        r, v = crop_cfg["fatores"][f], values[f]
+        label, unit = FACTOR_LABEL[f]
+        rows.append({"id": f, "nome": label, "unidade": unit, "valor": None if v is None else round(float(v), 2),
+                     "faixa": {k: r[k] for k in "abcd"}, "nota": None if v is None else round(fit(v, r["a"], r["b"], r["c"], r["d"]), 3),
+                     "peso": crop_cfg["pesos"].get(f, 0.05)})
+    return rows
+
+
+def score_crop(stats: SpatialStats, climate: Optional[dict], crop_cfg: dict, planting_month: Optional[int] = None,
+               today: Optional[datetime] = None) -> Viability:
+    today = today or datetime.now()
+    values = factor_values(stats, climate, crop_cfg, planting_month)
     factors, missing = {}, []
     for f in FACTORS:
         if f not in crop_cfg["fatores"]:

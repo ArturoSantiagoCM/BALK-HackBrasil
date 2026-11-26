@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>BALK: cadastro</title>
+<link rel="stylesheet" href="/app/css/site.css">
+</head>
+<body>
+<header class="topo"><div class="wrap"><a class="logo" href="/">BALK</a><nav><a href="/app/meus.html">Minha área</a></nav></div></header>
+<main class="wrap">
+  <h1>Cadastro</h1>
+
+  <section id="passo1" class="card">
+    <h2>1. Seu número de WhatsApp</h2>
+    <form id="f1" novalidate>
+      <label for="nome">Seu nome (opcional)</label>
+      <input id="nome" type="text" maxlength="80" autocomplete="name">
+      <label for="tel">WhatsApp com DDD</label>
+      <input id="tel" type="tel" inputmode="tel" autocomplete="tel" placeholder="65 99999-0000" required>
+      <label class="check"><input id="c1" type="checkbox"><span id="t1">Carregando…</span></label>
+      <label class="check"><input id="c2" type="checkbox"><span id="t2">Carregando…</span></label>
+      <p class="suave" id="versao"></p>
+      <p id="erro1" class="erro escondido" role="alert"></p>
+      <button class="btn" id="enviar" type="submit">Enviar o código</button>
+    </form>
+  </section>
+
+  <section id="passo2" class="card escondido">
+    <h2>2. Digite o código</h2>
+    <p>Enviamos 6 dígitos para o seu WhatsApp. Eles valem por 10 minutos.</p>
+    <form id="f2" novalidate>
+      <label for="cod">Código</label>
+      <input id="cod" class="codigo" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}">
+      <p id="erro2" class="erro escondido" role="alert"></p>
+      <div class="barra">
+        <button class="btn" type="submit">Confirmar</button>
+        <button class="btn sec" id="voltar" type="button">Trocar o número</button>
+      </div>
+    </form>
+  </section>
+  <p class="suave">Para parar de receber, escreva SAIR no WhatsApp a qualquer momento.</p>
+</main>
+<script type="module" src="/app/js/cadastro.js"></script>
+</body>
+</html>

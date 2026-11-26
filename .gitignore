@@ -1,7 +1,35 @@
+# Segredos e configuração local (NUNCA versionar)
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
 .venv/
+venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Dados gerados e bancos (podem ter dado pessoal)
 work/
 *.db
-.pytest_cache/
+*.db-journal
+*.sqlite
+*.sqlite3
+backups/
+
+# Editor, sistema e configuração local do Claude Code
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.claude/settings.local.json
+.claude/launch.json
+
+# Cópias antigas do projeto (são repositórios git aninhados; não fazem parte desta entrega)
+/balk/
+/BALK-HackBrasil/

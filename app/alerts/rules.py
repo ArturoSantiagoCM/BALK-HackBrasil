@@ -100,7 +100,8 @@ def evaluate_stress(stats: Optional[SpatialStats], ndvi_history: Optional[dict] 
         return None
     if ndvi_history and ndvi_history.get("std"):
         z = zscore(stats.ndvi_mean, ndvi_history["mean"], ndvi_history["std"])
-        conf, ref = "media", "historico"
+        ref = ndvi_history.get("referencia", "historico")  # safras anteriores (média) ou série recente da safra (baixa)
+        conf = "media" if ref == "historico" else "baixa"
     else:
         z = zscore(stats.ndvi_mean, stats.ndvi_ref_mean, stats.ndvi_ref_std) if stats.ndvi_ref_mean is not None else None
         conf, ref = "baixa", "vizinhanca"

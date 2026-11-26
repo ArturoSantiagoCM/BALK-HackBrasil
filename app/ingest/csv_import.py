@@ -4,8 +4,8 @@ import io
 from datetime import date
 from typing import Optional
 
-from app import db
-from app.ingest.conversation import match_crop, norm, parse_date, valid_coords
+from app import config, db
+from app.ingest.conversation import grant, match_crop, norm, optin_text, parse_date, valid_coords
 from app.models import Producer
 
 COLUMNS = ["telefone", "lat", "lon", "cultura", "data_plantio", "canal", "origem", "consentimento"]
@@ -55,7 +55,8 @@ def _validate(row: dict, today: Optional[date]) -> Producer:
 
 def ingest_rows(rows: list[dict], today: Optional[date] = None) -> dict:
     """Valida cada linha. Devolve quantas foram aceitas e os erros por linha (a primeira linha de dados é a 1)."""
-    accepted, errors = [], []
+    accepted, errors, optin = [], [], []
+    need_optin = config.csv_requires_optin()  # produção: a pessoa precisa responder SIM antes de receber qualquer coisa
     for i, raw in enumerate(rows, start=1):
         row = {norm(k): (str(v) if v is not None else "").strip() for k, v in raw.items()}
         # aceita também as chaves em inglês do contrato Producer
@@ -70,9 +71,18 @@ def ingest_rows(rows: list[dict], today: Optional[date] = None) -> dict:
             errors.append({"linha": i, "erro": str(e)})
             continue
         existing = db.get_producer_by_phone(p.phone)
+        already_ok = bool(existing and existing.state == "ATIVO" and existing.consent)  # quem já aceitou não volta ao convite
+        if need_optin and not already_ok:
+            p = p.model_copy(update={"consent": False, "state": "AGUARDA_SIM"})
         if existing:  # idempotente: reimportar atualiza
             p = db.update_producer(existing.id, **p.model_dump(exclude={"id", "phone"}))
         else:
             p = db.create_producer(p)
         accepted.append(p.id)
-    return {"aceitos": len(accepted), "erros": errors, "ids": accepted}
+        if p.state == "AGUARDA_SIM":
+            optin.append({"producer_id": p.id, "phone": p.phone, "channel": p.channel, "origem": p.source,
+                          "text": optin_text(p.source, sms=p.channel == "sms")})
+        elif not db.has_consent(p.phone):  # consentimento declarado pela cooperativa (modo demo): fica registrado como tal
+            grant(p.phone, p.id, f"cooperativa:{p.source}")
+    return {"aceitos": len(accepted), "erros": errors, "ids": accepted, "optin_pendentes": optin,
+            "ids_ativos": [i for i in accepted if i not in {o["producer_id"] for o in optin}]}

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>BALK: histórico por safra</title>
+<link rel="stylesheet" href="/app/css/site.css">
+</head>
+<body>
+<header class="topo"><div class="wrap">
+  <a class="logo" href="/">BALK</a>
+  <nav><a href="/app/mapa.html">Mapa</a> <a href="/app/meus.html">Minha área</a></nav>
+</div></header>
+<main class="wrap">
+  <h1>Histórico por safra</h1>
+  <p class="suave">O que o satélite viu em cada talhão, safra a safra. Informe a produtividade ao fechar a safra: assim os próximos avisos comparam com o que já aconteceu aí.</p>
+  <p id="erroGeral" class="erro escondido" role="alert"></p>
+  <section id="semSessao" class="card escondido"><p>Confirme o seu número para ver o histórico.</p><a class="btn" href="/app/cadastro.html">Entrar</a></section>
+  <div id="safras"></div>
+  <h2>Avisos enviados</h2>
+  <div id="avisos"></div>
+</main>
+<script type="module" src="/app/js/historico.js"></script>
+</body>
+</html>

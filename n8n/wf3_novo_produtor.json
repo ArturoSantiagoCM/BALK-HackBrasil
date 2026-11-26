@@ -27,11 +27,19 @@
         "method": "POST",
         "url": "http://api:8000/ingest/producers?analisar=true",
         "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{JSON.stringify($json.body)}}"
       },
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "BALK API key"
+        }
+      }
     },
     {
       "name": "Um relatório por produtor",
@@ -170,8 +178,7 @@
         "specifyBody": "json",
         "jsonBody": "={\"text\": \"BALK: falha em \" + $workflow.name}",
         "options": {}
-      },
-      "onError": "continueErrorOutput"
+      }
     }
   ],
   "connections": {

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>BALK: desenhe seus talhões</title>
+<link rel="stylesheet" href="/app/css/site.css">
+<link rel="stylesheet" href="/app/vendor/maplibre-gl.css">
+<script src="/app/vendor/turf.min.js"></script>
+<script src="/app/vendor/terra-draw.umd.js"></script>
+<script src="/app/vendor/terra-draw-maplibre-gl-adapter.umd.js"></script>
+</head>
+<body class="mapa-pg">
+<header class="topo"><div class="wrap">
+  <a class="logo" href="/">BALK</a>
+  <nav><a href="/app/meus.html">Minha área</a> <a href="/app/historico.html">Histórico</a></nav>
+</div></header>
+
+<div class="mapa-corpo">
+  <aside class="painel" aria-label="Seus talhões">
+    <h2>Seus talhões</h2>
+    <p class="suave">Procure o lugar, toque em <strong>Desenhar talhão</strong> e vá tocando nos cantos da lavoura. Para fechar, toque no primeiro ponto de novo (ou duplo toque no último).</p>
+
+    <div class="busca">
+      <input id="busca" type="text" placeholder="Município, endereço ou lat, lon" aria-label="Buscar lugar">
+      <button class="btn sec peq" id="btnBuscar" type="button">Buscar</button>
+    </div>
+    <div class="resultados" id="resultados"></div>
+    <div class="barra">
+      <button class="btn sec peq" id="btnGps" type="button">Usar minha localização</button>
+      <button class="btn sec peq escondido" id="btnCamada" type="button">Ver: Ruas</button>
+    </div>
+    <p class="suave">O GPS só leva o mapa até você. Os limites são os que você desenha.</p>
+
+    <div class="barra">
+      <button class="btn" id="btnDesenhar" type="button">Desenhar talhão</button>
+    </div>
+    <p id="erroGeral" class="erro escondido" role="alert"></p>
+
+    <ul class="limpa" id="lista"></ul>
+
+    <form id="form" class="card escondido" novalidate>
+      <h3 id="formTitulo">Novo talhão</h3>
+      <p class="ok" id="area"></p>
+      <label for="nome">Nome do talhão</label>
+      <input id="nome" type="text" maxlength="60" placeholder="Ex.: Baixada, Morro, Pivô 2">
+      <label for="cultura">Cultura</label>
+      <select id="cultura"><option value="">Ainda não sei</option></select>
+      <label for="plantio">Data do plantio</label>
+      <input id="plantio" type="date">
+      <p id="erroForm" class="erro escondido" role="alert"></p>
+      <div class="barra">
+        <button class="btn" id="btnSalvar" type="submit">Salvar talhão</button>
+        <button class="btn sec" id="btnCancelar" type="button">Cancelar</button>
+        <button class="btn perigo peq escondido" id="btnExcluir" type="button">Excluir</button>
+      </div>
+    </form>
+
+    <details class="card">
+      <summary><strong>Propriedade e ponto de entrega (opcional)</strong></summary>
+      <label for="fazenda">Nome da propriedade</label>
+      <input id="fazenda" type="text" maxlength="80">
+      <p class="suave">Ponto de entrega da colheita (para planejar a rota). Toque no botão e depois no mapa.</p>
+      <div class="barra">
+        <button class="btn sec peq" id="btnEntrega" type="button">Marcar ponto de entrega</button>
+      </div>
+      <p class="suave" id="entregaTxt"></p>
+    </details>
+
+    <div class="card">
+      <button class="btn" id="btnConcluir" type="button">Concluir e receber os avisos</button>
+      <p class="suave">Vou enviar um relatório de cada talhão no seu WhatsApp.</p>
+      <p id="erroFim" class="erro escondido" role="alert"></p>
+      <p id="okFim" class="ok escondido"></p>
+    </div>
+  </aside>
+  <div id="mapa" role="application" aria-label="Mapa para desenhar os talhões"></div>
+</div>
+<script type="module" src="/app/js/mapa.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# Textos de consentimento (LGPD e WhatsApp). VERSIONADOS: ao mudar um texto, suba a versão. Cada aceite grava finalidade,
+# versão, data e origem (tabela consents). STATUS: v0 PROVISÓRIO, a revisar por advogado/DPO antes de uso real.
+versao: "v0"
+status: "provisório; revisar com advogado (LGPD) antes de qualquer produtor real"
+finalidades:
+  dados_localizacao: "Tratar meu telefone e a localização da minha lavoura para analisar clima e satélite do meu terreno."
+  mensagens: "Receber avisos curtos no WhatsApp (e SMS, se o WhatsApp falhar) sobre clima, lavoura e colheita."
+# Mensagens de conversa (o aceite é a resposta SIM; SAIR revoga na hora)
+texto_pt: "Olá, sou o BALK. Uso o seu telefone e a localização da sua lavoura para enviar avisos curtos de clima e lavoura. Responda SIM para aceitar ou SAIR para parar a qualquer momento."
+texto_sms: "BALK: responda SIM para receber alertas de clima e lavoura. SAIR para parar."
+texto_sucessor: "Olá, sou o BALK. {nome} pediu que você receba os avisos de clima e lavoura da propriedade. Responda SIM para aceitar ou SAIR para não receber."

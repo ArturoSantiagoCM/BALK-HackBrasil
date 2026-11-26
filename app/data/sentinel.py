@@ -47,11 +47,13 @@ def _save_window(href: str, bbox: list[float], out: Path, scale: float = 1.0, of
 
 
 def fetch_sentinel_clip(lat: float, lon: float, out_dir: Path, today: Optional[datetime] = None,
-                        max_cloud: int = 30, days: int = 30) -> dict:
-    """Cena mais recente com <30% de nuvem nos últimos 30 dias -> red.tif, nir.tif, scl.tif, dem.tif."""
+                        max_cloud: int = 30, days: int = 30, bbox: Optional[list] = None) -> dict:
+    """Cena mais recente com <30% de nuvem nos últimos 30 dias -> red.tif, nir.tif, scl.tif, dem.tif.
+
+    `bbox` (lon0, lat0, lon1, lat1) permite cobrir um talhão grande; o padrão é 1 km ao redor do ponto."""
     today = today or datetime.now()
     out_dir.mkdir(parents=True, exist_ok=True)
-    bbox = bbox_around(lat, lon)
+    bbox = bbox or bbox_around(lat, lon)
     client = Client.open(STAC_URL)
     rng = f"{(today - timedelta(days=days)):%Y-%m-%d}/{today:%Y-%m-%d}"
     items = list(client.search(collections=[S2_COLLECTION], bbox=bbox, datetime=rng,

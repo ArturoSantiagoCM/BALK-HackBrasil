@@ -31,8 +31,9 @@ def test_conversa_pelo_simulador_gera_relatorio_ao_ficar_ativo():
     assert r["became_active"]
     rel = [m for m in r["messages"] if m["kind"] == "report"][0]
     assert "Não substitui um engenheiro agrônomo" in rel["text"] and "soja" in rel["text"]
-    assert rel["media_url"] == f"/maps/{r['producer_id']}.png"
-    png = client.get(rel["media_url"])
+    assert rel["media_url"].endswith("/img/mapa.png") and "/r/" in rel["media_url"]
+    assert "http" in rel["text"].rstrip().split("\n")[-1]  # a mensagem termina com o link do relatório
+    png = client.get(rel["media_url"].replace("http://localhost:8000", ""))
     assert png.status_code == 200 and png.content[:4] == b"\x89PNG"
     assert client.post("/simulate", json={"phone": "+5500900009999", "text": "2"}).json()["reply"].startswith("Certo")
     assert len(client.get("/producers/active").json()) == 1
@@ -94,9 +95,11 @@ def test_logistica_e_previsao_da_cooperativa():
 
 def test_sms_inbound_cadastro_e_resposta_1_ou_2():
     def sms(body):
-        return client.post("/sms/inbound", data={"From": "+5500900008888", "Body": body}).json()
+        return client.post("/sms/inbound", json={"from": "+5500900008888", "body": body}).json()  # JSON = dev/n8n; Twilio = formulário assinado
     assert "SIM" in sms("BALK soja 20/10 Sorriso MT")["reply"]
     r = sms("SIM")
     assert r["became_active"] and r["messages"][0]["text"].startswith("BALK:")
     assert sms("1")["reply"] == "Registrado, obrigado."
     assert client.post("/sms/inbound", json={"body": "x"}).status_code == 422
+    twiml = client.post("/sms/inbound", data={"From": "+5500900008889", "Body": "oi"})  # formulário (sem token Twilio em dev)
+    assert twiml.headers["content-type"].startswith("application/xml") and "<Message>" in twiml.text

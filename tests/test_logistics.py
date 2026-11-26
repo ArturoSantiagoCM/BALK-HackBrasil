@@ -67,9 +67,9 @@ def test_forecast_agrega_por_dia():
 
 
 def test_coop_forecast_com_produtores_prontos():
-    db.create_producer(Producer(phone="a", lat=-23.5874, lon=-46.6576, crop="soja", planting_date="2026-07-25",
+    db.create_producer(Producer(phone="5500900006001", lat=-23.5874, lon=-46.6576, crop="soja", planting_date="2026-07-25",
                                 consent=True, source="coopx", state="ATIVO"))
-    db.create_producer(Producer(phone="b", lat=-23.5874, lon=-46.6576, crop="soja", planting_date="2026-11-01",
+    db.create_producer(Producer(phone="5500900006002", lat=-23.5874, lon=-46.6576, crop="soja", planting_date="2026-11-01",
                                 consent=True, source="coopx", state="ATIVO"))  # ainda não pronta
     f = coop_forecast("coopx", NOW)
     assert f["total_toneladas"] == pytest.approx(7.0 * 3.5, abs=0.1)

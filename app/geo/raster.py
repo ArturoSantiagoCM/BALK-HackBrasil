@@ -52,6 +52,17 @@ def circle_mask(transform, shape, point, radius_m: float) -> np.ndarray:
     return np.hypot(xs - point[0], ys - point[1]) <= radius_m
 
 
+def polygon_mask(transform, shape, crs, geojson: dict) -> np.ndarray:
+    """Máscara do talhão desenhado (GeoJSON em graus) sobre a grade em metros: pixel entra se o centro dele cai dentro."""
+    from rasterio.features import geometry_mask
+    from shapely.geometry import shape as to_shape
+    from shapely.ops import transform as shp_transform
+    g = geojson.get("geometry") if geojson.get("type") == "Feature" else geojson
+    proj = Transformer.from_crs(4326, crs, always_xy=True).transform
+    poly = shp_transform(proj, to_shape(g))
+    return geometry_mask([poly], out_shape=shape, transform=transform, invert=True, all_touched=False)
+
+
 def pixel_xy(transform, shape):
     """Coordenadas (x, y) em metros do centro de cada pixel."""
     rows, cols = np.indices(shape)

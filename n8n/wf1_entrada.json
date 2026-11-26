@@ -27,11 +27,19 @@
         "method": "POST",
         "url": "http://api:8000/conversation",
         "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\"phone\": \"{{$json.body.phone}}\", \"text\": \"{{$json.body.text}}\", \"channel\": \"{{$json.body.channel}}\"}"
       },
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "BALK API key"
+        }
+      }
     },
     {
       "name": "Texto da resposta",
@@ -158,8 +166,7 @@
         "specifyBody": "json",
         "jsonBody": "={\"text\": \"BALK: falha em \" + $workflow.name}",
         "options": {}
-      },
-      "onError": "continueErrorOutput"
+      }
     }
   ],
   "connections": {

@@ -10,6 +10,8 @@ import requests
 FORBIDDEN = ["garantido", "garantia", "garantimos", "dose", "doses", "dosagem", "l/ha", "kg/ha", "ml/ha",
              "glifosato", "roundup", "produto", "produtos", "marca", "fungicida", "herbicida", "inseticida"]
 NUM = re.compile(r"\d+(?:[.,]\d+)?")
+# siglas e termos técnicos que não entram na mensagem do produtor (ficam só no relatório detalhado)
+ACRONYMS = ["NDVI", "NDMI", "NDRE", "SCL", "ET0", "TPI", "DEM", "UTM", "STAC", "Delta T", "z-score"]
 SYSTEM = ("Você reescreve mensagens agrícolas curtas em {idioma}, em tom simples e respeitoso.\n"
           "Use SÓ os números do JSON. Não cite produtos, marcas nem doses. Não dê garantias.\n"
           "Mantenha duas linhas no topo (o que fazer e o motivo) e \"Por quê\" abaixo. Máximo de {N} caracteres. "
@@ -43,6 +45,9 @@ def validate_polished(original: str, polished: str, data: dict, max_chars: Optio
         return False, f"número inventado: {sorted(extra)[0]}"
     if max_chars is not None and len(polished) > max_chars:
         return False, f"texto com {len(polished)} caracteres (limite {max_chars})"
+    for sigla in ACRONYMS:
+        if re.search(rf"(?<![A-Za-z]){re.escape(sigla)}(?![A-Za-z])", polished, re.IGNORECASE):
+            return False, f"sigla técnica: {sigla}"
     words = set(re.findall(r"[a-z/]+", _norm(polished)))
     bad = [w for w in FORBIDDEN if w in words]
     if bad:

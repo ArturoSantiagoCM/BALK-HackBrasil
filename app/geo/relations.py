@@ -75,6 +75,18 @@ def weak_area(ndvi: np.ndarray, aoi: np.ndarray, transform, point, ref_mean: Opt
     return {"pct": pct, "dir": compass(float(np.degrees(np.arctan2(dx, dy))))}
 
 
+def erosion_field(slope_pct: Optional[np.ndarray], ndvi: np.ndarray, aoi: np.ndarray, clay_pct: Optional[float],
+                  rain_month_mm: Optional[float], cfg: dict) -> Optional[np.ndarray]:
+    """O índice de erosão pixel a pixel (0..1, NaN fora do círculo). erosion_index tira a média daqui."""
+    if slope_pct is None:
+        return None
+    S = np.clip(np.where(aoi, slope_pct, np.nan) / cfg.get("declive_ref_pct", 15.0), 0.0, 1.5)
+    R = float(np.clip((rain_month_mm if rain_month_mm is not None else 100.0) / cfg.get("chuva_ref_mm_mes", 250.0), 0.0, 1.5))
+    K = 0.8 if clay_pct is None else float(np.clip(1.15 - 0.011 * clay_pct, 0.4, 1.0))
+    C = np.clip(1.0 - np.where(np.isfinite(ndvi), ndvi, 0.5), 0.05, 1.0)  # sem NDVI: cobertura média
+    return np.clip(S * (0.4 * R + 0.4 * C + 0.2 * K), 0.0, 1.0)
+
+
 def erosion_index(slope_pct: Optional[np.ndarray], ndvi: np.ndarray, aoi: np.ndarray, clay_pct: Optional[float],
                   rain_month_mm: Optional[float], cfg: dict):
     """Índice 0..1 de risco de erosão, relativo (NÃO é perda de solo em t/ha). [H]
@@ -84,13 +96,9 @@ def erosion_index(slope_pct: Optional[np.ndarray], ndvi: np.ndarray, aoi: np.nda
       R = chuva mensal média / chuva_ref_mm_mes, C = cobertura = 1 - NDVI, K = solo (argila: mais argila, menos erodível).
     Referências e cortes (baixo_ate, medio_ate) vêm de rules.yaml, bloco `erosao`.
     """
-    if slope_pct is None:
+    idx = erosion_field(slope_pct, ndvi, aoi, clay_pct, rain_month_mm, cfg)
+    if idx is None:
         return None, None
-    S = np.clip(np.where(aoi, slope_pct, np.nan) / cfg.get("declive_ref_pct", 15.0), 0.0, 1.5)
-    R = float(np.clip((rain_month_mm if rain_month_mm is not None else 100.0) / cfg.get("chuva_ref_mm_mes", 250.0), 0.0, 1.5))
-    K = 0.8 if clay_pct is None else float(np.clip(1.15 - 0.011 * clay_pct, 0.4, 1.0))
-    C = np.clip(1.0 - np.where(np.isfinite(ndvi), ndvi, 0.5), 0.05, 1.0)  # sem NDVI: cobertura média
-    idx = np.clip(S * (0.4 * R + 0.4 * C + 0.2 * K), 0.0, 1.0)
     ok = aoi & np.isfinite(idx)
     if not ok.any():
         return None, None

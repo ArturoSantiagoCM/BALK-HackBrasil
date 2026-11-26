@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>BALK: minha área</title>
+<link rel="stylesheet" href="/app/css/site.css">
+</head>
+<body>
+<header class="topo"><div class="wrap">
+  <a class="logo" href="/">BALK</a>
+  <nav><a href="/app/mapa.html">Mapa</a> <a href="/app/historico.html">Histórico</a></nav>
+</div></header>
+<main class="wrap">
+  <h1>Minha área</h1>
+  <p id="erroGeral" class="erro escondido" role="alert"></p>
+
+  <section id="semSessao" class="card escondido">
+    <p>Para ver esta página, confirme o seu número de WhatsApp.</p>
+    <a class="btn" href="/app/cadastro.html">Entrar</a>
+  </section>
+
+  <div id="conteudo" class="escondido">
+    <section class="card">
+      <h2 id="ola">Olá</h2>
+      <p class="suave" id="numero"></p>
+      <p id="estado"></p>
+    </section>
+
+    <section class="card">
+      <h2>Meus talhões</h2>
+      <table><thead><tr><th>Nome</th><th>Área</th><th>Cultura</th><th>Plantio</th></tr></thead><tbody id="tabela"></tbody></table>
+      <p><a class="btn" href="/app/mapa.html">Desenhar ou ajustar no mapa</a></p>
+    </section>
+
+    <section class="card">
+      <h2>Segundo contato</h2>
+      <p class="suave">Alguém de confiança (família, vizinho) que recebe os mesmos avisos e pode ver o histórico, mas não altera nada. Só começa depois de responder SIM.</p>
+      <ul class="limpa" id="contatos"></ul>
+      <label for="telContato">WhatsApp com DDD</label>
+      <input id="telContato" type="tel" inputmode="tel" placeholder="65 99999-0000">
+      <p id="erroContato" class="erro escondido" role="alert"></p>
+      <p class="barra"><button class="btn sec" id="btnContato" type="button">Convidar</button></p>
+    </section>
+
+    <section class="card">
+      <h2>Meus dados</h2>
+      <p><a class="btn sec" href="/api/export" download>Baixar tudo que o BALK guarda de mim</a></p>
+      <p><button class="btn sec" id="btnSair" type="button">Parar de receber avisos</button>
+         <span class="suave">Você pode voltar quando quiser, pelo cadastro.</span></p>
+      <p><button class="btn perigo" id="btnExcluir" type="button">Apagar minha conta e todos os dados</button></p>
+      <p id="erroConta" class="erro escondido" role="alert"></p>
+    </section>
+    <p><button class="btn sec peq" id="btnLogout" type="button">Sair deste aparelho</button></p>
+  </div>
+</main>
+<script type="module" src="/app/js/meus.js"></script>
+</body>
+</html>

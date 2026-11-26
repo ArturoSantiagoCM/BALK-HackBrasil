@@ -1,0 +1,17 @@
+# Versões testadas (Python 3.12.8, Windows, 26/11/2026). Para reproduzir exatamente: pip install -r requirements.lock.txt
+fastapi==0.165.0
+starlette==1.10.0
+uvicorn==0.54.0
+pydantic==2.14.4
+requests==2.34.2
+pystac-client==0.9.1
+rasterio==1.5.2
+numpy==2.5.5
+shapely==2.2.0
+PyYAML==6.0.4
+pytest==9.2.0
+python-dotenv==1.2.4
+pyproj==3.8.0
+matplotlib==3.11.2
+httpx==0.28.1
+python-multipart==0.0.34

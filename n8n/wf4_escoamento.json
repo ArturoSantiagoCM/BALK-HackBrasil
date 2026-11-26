@@ -23,11 +23,19 @@
         "method": "POST",
         "url": "http://api:8000/logistics/plan",
         "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\"producer_id\": 2, \"destination_id\": \"coop\"}"
       },
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "BALK API key"
+        }
+      }
     },
     {
       "name": "Texto da saída",
@@ -154,8 +162,7 @@
         "specifyBody": "json",
         "jsonBody": "={\"text\": \"BALK: falha em \" + $workflow.name}",
         "options": {}
-      },
-      "onError": "continueErrorOutput"
+      }
     }
   ],
   "connections": {

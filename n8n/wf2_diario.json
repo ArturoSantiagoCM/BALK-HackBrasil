@@ -31,9 +31,17 @@
       "parameters": {
         "method": "GET",
         "url": "http://api:8000/producers/active",
-        "options": {}
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "BALK API key"
+        }
+      }
     },
     {
       "name": "Um produtor por vez",
@@ -58,9 +66,17 @@
       "parameters": {
         "method": "POST",
         "url": "=http://api:8000/analyze/{{$json.id}}",
-        "options": {}
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "BALK API key"
+        }
+      }
     },
     {
       "name": "Alertas da análise",
@@ -166,11 +182,19 @@
         "method": "POST",
         "url": "http://api:8000/alerts/log",
         "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\"producer_id\": {{$(\"Alertas da análise\").item.json.producer_id}}, \"type\": \"{{$(\"Alertas da análise\").item.json.type}}\"}"
       },
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "BALK API key"
+        }
+      }
     },
     {
       "name": "Avisar equipe (erro)",
@@ -187,8 +211,7 @@
         "specifyBody": "json",
         "jsonBody": "={\"text\": \"BALK: falha em \" + $workflow.name}",
         "options": {}
-      },
-      "onError": "continueErrorOutput"
+      }
     }
   ],
   "connections": {

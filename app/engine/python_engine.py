@@ -9,11 +9,12 @@ from app.geo.pipeline import RADIUS_M, Products, run  # noqa: F401  (RADIUS_M re
 from app.models import SpatialStats
 
 
-def analyze_python(work_dir: Path, lat: float, lon: float, rain_month_mm: Optional[float] = None) -> SpatialStats:
-    return run(Path(work_dir), lat, lon, rain_month_mm)[0]
+def analyze_python(work_dir: Path, lat: float, lon: float, rain_month_mm: Optional[float] = None,
+                   polygon: Optional[dict] = None) -> SpatialStats:
+    return run(Path(work_dir), lat, lon, rain_month_mm, polygon=polygon)[0]
 
 
-def analyze_with_products(work_dir: Path, lat: float, lon: float,
-                          rain_month_mm: Optional[float] = None) -> tuple[SpatialStats, Products]:
+def analyze_with_products(work_dir: Path, lat: float, lon: float, rain_month_mm: Optional[float] = None,
+                          polygon: Optional[dict] = None) -> tuple[SpatialStats, Products]:
     """Igual a analyze_python, mas devolve também os arrays (para o mapa e para depurar)."""
-    return run(Path(work_dir), lat, lon, rain_month_mm)
+    return run(Path(work_dir), lat, lon, rain_month_mm, polygon=polygon)

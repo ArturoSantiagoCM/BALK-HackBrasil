@@ -1,0 +1,20 @@
+name: testes
+on:
+  push:
+  pull_request:
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Testes (dados simulados, sem internet)
+        run: python -m pytest -q
+      - name: Nenhum segredo no repositório
+        run: |
+          if git ls-files | grep -E '(^|/)\.env$'; then echo ".env versionado!"; exit 1; fi
+          if git grep -nE '(sk-ant-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|EAA[A-Za-z0-9]{40,})' -- . ':!tests'; then echo "possível chave no código"; exit 1; fi
