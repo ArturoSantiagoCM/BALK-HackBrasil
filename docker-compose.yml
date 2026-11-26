@@ -1,0 +1,30 @@
+# api = FastAPI + QGIS na mesma imagem; n8n = imagem oficial. Rodar: docker compose up --build
+services:
+  api:
+    build: .
+    ports: ["8000:8000"]
+    env_file: [.env]
+    environment:
+      - ENGINE=${ENGINE:-python}
+      - DATA_MODE=${DATA_MODE:-simulado}
+      - BALK_DB=/srv/balk/data_store/balk.db
+    volumes:
+      - ./work:/srv/balk/work
+      - balk_db:/srv/balk/data_store
+  n8n:
+    image: n8nio/n8n:latest
+    ports: ["5678:5678"]
+    environment:
+      - N8N_SECURE_COOKIE=false
+      - GENERIC_TIMEZONE=America/Sao_Paulo
+      - TZ=America/Sao_Paulo
+      - WHATSAPP_PHONE_ID=${WHATSAPP_PHONE_ID:-}
+      - TWILIO_FROM=${TWILIO_FROM:-}
+      - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL:-}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n:/imports:ro   # importe os JSON de /imports pela interface
+    depends_on: [api]
+volumes:
+  balk_db:
+  n8n_data:

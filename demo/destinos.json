@@ -1,0 +1,5 @@
+[
+  {"id": "coop", "nome": "Cooperativa (Luziânia, GO)", "tipo": "cooperativa", "lat": -16.2525, "lon": -47.95},
+  {"id": "armazem", "nome": "Armazém (Cristalina, GO)", "tipo": "armazem", "lat": -16.7686, "lon": -47.6136},
+  {"id": "porto_seco", "nome": "Porto seco (Anápolis, GO)", "tipo": "porto_seco", "lat": -16.3267, "lon": -48.9528}
+]

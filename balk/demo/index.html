@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BALK · simulador</title>
+<style>
+  :root { --verde:#0b6e4f; --verde2:#075e54; --bolha:#dcf8c6; --fundo:#efeae2; --texto:#1c1c1c; --cinza:#667; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.4 system-ui,Segoe UI,Roboto,sans-serif; background:#f4f6f4; color:var(--texto); }
+  header { background:var(--verde2); color:#fff; padding:12px 20px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:20px; letter-spacing:.5px; }
+  header small { opacity:.85; flex:1; }
+  button { font:inherit; cursor:pointer; border:0; border-radius:8px; padding:7px 12px; background:var(--verde); color:#fff; }
+  button.sec { background:#e3ebe7; color:var(--verde2); }
+  button.ghost { background:transparent; color:#fff; border:1px solid #fff8; }
+  main { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; padding:16px; max-width:1500px; margin:auto; }
+  section { background:#fff; border-radius:14px; box-shadow:0 1px 4px #0002; padding:14px; display:flex; flex-direction:column; gap:10px; min-width:0; }
+  h2 { margin:0; font-size:16px; color:var(--verde2); }
+  .hint { color:var(--cinza); font-size:13px; margin:0; }
+  .chat { background:var(--fundo); border-radius:10px; height:380px; overflow:auto; padding:10px; display:flex; flex-direction:column; gap:6px; }
+  .b { max-width:88%; padding:7px 10px; border-radius:10px; white-space:pre-wrap; word-wrap:break-word; box-shadow:0 1px 1px #0002; background:#fff; font-size:14px; }
+  .b.me { align-self:flex-end; background:var(--bolha); }
+  .b img { width:100%; border-radius:6px; margin-top:6px; display:block; }
+  .row { display:flex; gap:6px; }
+  .row input, .row select { flex:1; font:inherit; padding:7px 9px; border:1px solid #ccd; border-radius:8px; min-width:0; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chips button { font-size:12px; padding:4px 9px; }
+  .sms { background:#222; border-radius:18px; padding:14px; }
+  .sms .tela { background:#b9d4a1; color:#162; font:14px/1.3 ui-monospace,Consolas,monospace; height:300px; overflow:auto; padding:8px; border-radius:6px; border:3px solid #333; }
+  .sms .tela div { margin-bottom:8px; border-bottom:1px dashed #6a8; padding-bottom:6px; white-space:pre-wrap; }
+  .sms .tela .eu { text-align:right; color:#254; }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th, td { padding:5px 6px; border-bottom:1px solid #e5e8e6; text-align:right; }
+  th:first-child, td:first-child { text-align:left; }
+  .feed { max-height:420px; overflow:auto; display:flex; flex-direction:column; gap:8px; }
+  .card { border:1px solid #dde; border-radius:10px; padding:8px 10px; font-size:13px; background:#fafcfb; }
+  .card .t { display:flex; justify-content:space-between; color:var(--cinza); font-size:12px; margin-bottom:4px; }
+  .badge { border-radius:10px; padding:0 7px; color:#fff; font-size:11px; }
+  .badge.wa { background:#25d366; } .badge.sms { background:#555; }
+  .card img { width:100%; border-radius:6px; margin-top:6px; }
+  .card pre { margin:0; white-space:pre-wrap; font:inherit; }
+  footer { text-align:center; color:var(--cinza); font-size:12px; padding:0 16px 20px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>BALK</h1>
+  <small>Orientação agronômica curta por WhatsApp e SMS · simulador (sem login, dados em cache/simulados)</small>
+  <span id="modo"></span>
+  <button class="ghost" id="reset">Reiniciar demo</button>
+</header>
+<main>
+  <section>
+    <h2>1 · WhatsApp — produtor novo</h2>
+    <p class="hint">Cadastro por conversa: consentimento, local, cultura e plantio. Ao ficar ativo, chega o relatório com mapa.</p>
+    <div class="chat" id="chat-wa"></div>
+    <div class="chips" id="chips-wa"></div>
+    <div class="row"><input id="in-wa" placeholder="Escreva uma mensagem"><button id="go-wa">Enviar</button></div>
+  </section>
+
+  <section>
+    <h2>2 · Celular simples — SMS</h2>
+    <p class="hint">Sem internet nem app. Mensagem de até 160 caracteres, sem acento. Responda 1 (ok) ou 2 (ajuda).</p>
+    <div class="sms"><div class="tela" id="chat-sms"></div></div>
+    <div class="row">
+      <select id="sms-phone">
+        <option value="+5500900000003">+5500900000003 (cooperado, Aparados da Serra)</option>
+        <option value="+5500900002222">+5500900002222 (número novo)</option>
+      </select>
+    </div>
+    <div class="chips" id="chips-sms"></div>
+    <div class="row"><input id="in-sms" placeholder="Digite o SMS"><button id="go-sms">Enviar</button></div>
+  </section>
+
+  <section>
+    <h2>3 · Cooperativa e logística</h2>
+    <div class="row">
+      <button id="csv">Importar CSV (5 produtores)</button>
+      <button id="daily">Rodar alertas do dia</button>
+    </div>
+    <p class="hint">O CSV vem de uma cooperativa fictícia (telefones falsos). "Alertas do dia" faz o que o fluxo diário do n8n faz.</p>
+    <h2 style="margin-top:6px">Previsão de recebimento (7 dias)</h2>
+    <table id="forecast"><thead><tr><th>Dia</th><th>Toneladas</th><th>Caminhões</th><th>Produtores</th></tr></thead><tbody></tbody></table>
+    <h2 style="margin-top:6px">Colheita e escoamento</h2>
+    <div class="row"><select id="lg-prod"></select><select id="lg-dest"></select></div>
+    <button id="lg-go" class="sec">Melhor hora de saída</button>
+    <div class="card" id="lg-out" style="display:none"></div>
+  </section>
+
+  <section style="grid-column:1/-1">
+    <h2>Mensagens enviadas pelo BALK</h2>
+    <div class="feed" id="feed"><p class="hint">Importe o CSV ou rode os alertas do dia para ver as mensagens.</p></div>
+  </section>
+</main>
+<footer>Estimativa orientativa a partir de dados de satélite e clima. Não substitui um engenheiro agrônomo.</footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const WA_PHONE = "+5500900001111";
+const PONTOS = { ibirapuera:[-23.5874,-46.6576], pnb:[-15.7347,-48.0152], aparados:[-29.1739,-50.0967] };
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(path + " → " + r.status + " " + await r.text());
+  return r.json();
+}
+const post = (p, body) => api(p, { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify(body || {}) });
+const esc = s => s.replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
+const fmt = s => esc(s).replace(/\*(.+?)\*/g, "<b>$1</b>");
+
+function bubble(box, text, me, media) {
+  const d = document.createElement("div");
+  d.className = "b" + (me ? " me" : "");
+  d.innerHTML = fmt(text) + (media ? `<img src="${media}" alt="mapa da análise">` : "");
+  box.appendChild(d); box.scrollTop = box.scrollHeight;
+}
+function smsLine(text, me) {
+  const d = document.createElement("div"); if (me) d.className = "eu";
+  d.textContent = (me ? "> " : "") + text;
+  $("#chat-sms").appendChild(d); $("#chat-sms").scrollTop = 1e9;
+}
+function feedCard(m) {
+  const f = $("#feed"); if (f.querySelector("p")) f.innerHTML = "";
+  const c = document.createElement("div"); c.className = "card";
+  const wa = m.channel !== "sms";
+  c.innerHTML = `<div class="t"><span>${esc(m.phone)} · ${esc(m.label || "")}</span><span class="badge ${wa ? "wa" : "sms"}">${wa ? "WhatsApp" : "SMS"}</span></div>` +
+    `<pre>${fmt(m.text)}</pre>` + (m.media_url && wa ? `<img src="${m.media_url}" alt="mapa">` : "");
+  f.prepend(c);
+  if (!wa && m.phone === $("#sms-phone").value) smsLine(m.text, false);
+}
+
+// --- WhatsApp
+async function sendWA(text, loc) {
+  if (text) bubble($("#chat-wa"), text, true); else if (loc) bubble($("#chat-wa"), "📍 localização enviada (" + loc.join(", ") + ")", true);
+  const body = { phone: WA_PHONE, text: text || "", channel: "whatsapp" };
+  if (loc) { body.lat = loc[0]; body.lon = loc[1]; }
+  const r = await post("/simulate", body);
+  r.messages.forEach(m => bubble($("#chat-wa"), m.text, false, m.media_url));
+}
+$("#go-wa").onclick = () => { const v = $("#in-wa").value.trim(); if (v) { $("#in-wa").value = ""; sendWA(v); } };
+$("#in-wa").onkeydown = e => { if (e.key === "Enter") $("#go-wa").click(); };
+[["Oi", () => sendWA("Oi")], ["SIM", () => sendWA("SIM")],
+ ["📍 Parque Ibirapuera", () => sendWA("", PONTOS.ibirapuera)], ["📍 Parque Nac. de Brasília", () => sendWA("", PONTOS.pnb)],
+ ["soja", () => sendWA("soja")], ["não sei", () => sendWA("não sei")], ["20/07", () => sendWA("20/07")], ["2 (ajuda)", () => sendWA("2")], ["SAIR", () => sendWA("SAIR")]
+].forEach(([t, fn]) => { const b = document.createElement("button"); b.className = "sec"; b.textContent = t; b.onclick = fn; $("#chips-wa").appendChild(b); });
+
+// --- SMS
+async function sendSMS(text) {
+  if (!text) return;
+  smsLine(text, true);
+  const r = await post("/simulate", { phone: $("#sms-phone").value, text, channel:"sms" });
+  r.messages.forEach(m => smsLine(m.text, false));
+}
+$("#go-sms").onclick = () => { const v = $("#in-sms").value.trim(); $("#in-sms").value = ""; sendSMS(v); };
+$("#in-sms").onkeydown = e => { if (e.key === "Enter") $("#go-sms").click(); };
+["BALK soja 20/10 Sorriso MT", "SIM", "1", "2", "SAIR"].forEach(t => {
+  const b = document.createElement("button"); b.className = "sec"; b.textContent = t; b.onclick = () => sendSMS(t); $("#chips-sms").appendChild(b);
+});
+
+// --- Cooperativa
+async function loadForecast() {
+  const f = await api("/cooperative/coop_demo/forecast");
+  $("#forecast tbody").innerHTML = f.dias.map(d => `<tr><td>${d.data.slice(5).split("-").reverse().join("/")}</td><td>${d.toneladas}</td><td>${d.caminhoes}</td><td>${d.produtores}</td></tr>`).join("");
+}
+async function loadProducers() {
+  const ps = (await api("/producers")).filter(p => p.source === "coop_demo");
+  $("#lg-prod").innerHTML = ps.map(p => `<option value="${p.id}">${p.phone} · ${p.crop || "?"}</option>`).join("") || "<option value=''>(importe o CSV)</option>";
+}
+$("#csv").onclick = async () => {
+  const txt = await (await fetch("/demo/coop.csv")).text();
+  const r = await api("/ingest/producers", { method:"POST", headers:{ "content-type":"text/csv" }, body:txt });
+  r.relatorios.forEach(x => x.messages.filter(m => m.kind === "report").forEach(m =>
+    feedCard({ phone:x.phone, channel:x.channel, label:"relatório de viabilidade", text:m.text, media_url:m.media_url })));
+  await loadForecast(); await loadProducers();
+};
+$("#daily").onclick = async () => {
+  const r = await post("/simulate/daily?hora=10");
+  if (!r.enviados.length) feedCard({ phone:"—", channel:"whatsapp", label:"silêncio", text:"Nenhum alerta novo: o silêncio evitou repetição." });
+  r.enviados.forEach(e => feedCard({ phone:e.phone, channel:e.channel, label:"alerta · " + e.type + " · confiança " + e.confidence, text:e.text }));
+};
+$("#lg-go").onclick = async () => {
+  const pid = +$("#lg-prod").value; if (!pid) return;
+  const p = await post("/logistics/plan", { producer_id:pid, destination_id:$("#lg-dest").value });
+  const o = $("#lg-out"); o.style.display = "block";
+  o.innerHTML = `<pre>${fmt(p.text)}</pre><div class="hint">Rota ${p.rota_fonte} · ${p.pontos_amostrados} pontos amostrados · ${p.premissas}</div>`;
+};
+$("#reset").onclick = async () => { await post("/simulate/reset"); location.reload(); };
+
+(async () => {
+  const h = await api("/health"); $("#modo").textContent = "dados: " + h.data_mode + " · motor: " + h.engine;
+  (await api("/destinos")).forEach(d => $("#lg-dest").insertAdjacentHTML("beforeend", `<option value="${d.id}">${d.nome}</option>`));
+  await loadProducers(); await loadForecast();
+  bubble($("#chat-wa"), "Escreva \"Oi\" para começar.", false);
+  smsLine("Celular simples. Use os botões abaixo.", false);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+# Limiares de alertas e silêncio. TODOS os números ficam aqui, com a fonte.
+# Status: referência pública inicial, EM REVISÃO por agrônomos (não dizer "validado").
+pulverizacao:
+  temp_max: 30
+  vento_min: 3
+  vento_max: 10
+  rh_min: 55
+  chuva_prob_max: 30
+  delta_t_min: 2
+  delta_t_max: 8
+  janela_horas: 3
+  hora_ini: 5      # só sugere janelas entre 5h e 19h (premissa da equipe)
+  hora_fim: 19
+  fonte: "referência pública inicial (Embrapa/fornecedores: <30 C, vento 3-10 km/h, UR >55%); Delta T 2-8 e horários: premissa; em revisão"
+geada:
+  tmin: 3
+  fonte: "referência pública inicial; em revisão"
+estresse:
+  z_max: -1.5
+  fonte: "regra estatística (z-score do NDVI); em revisão"
+colheita:
+  chuva_mm_max: 2
+  horas: 48
+  margem_dias_ciclo: 10   # considera pronta a lavoura a (ciclo_dias - margem) dias do plantio
+  fonte: "premissa; em revisão"
+silencio:
+  max_por_semana: 2
+  pausa_horas: 72
+  quieto_das: 20
+  quieto_ate: 6
+  # nota: o cron diário do n8n (WF2) roda às 06:05 para cair fora do horário quieto.
+logistica:
+  velocidade_kmh: 60
+  passo_km: 20
+  frete_rs_por_km: 6.0        # premissa a confirmar com a tabela de piso mínimo da ANTT
+  capacidade_caminhao_t: 30   # premissa
+  fator_linha_reta: 1.3       # usado só quando o OSRM está indisponível (estimativa)
+  fonte: "premissas; em revisão"

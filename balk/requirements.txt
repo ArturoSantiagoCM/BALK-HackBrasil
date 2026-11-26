@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+pydantic
+requests
+pystac-client
+rasterio
+numpy
+shapely
+pyyaml
+pytest
+python-dotenv
+pyproj
+matplotlib
+httpx
+python-multipart

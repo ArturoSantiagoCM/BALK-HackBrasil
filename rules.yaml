@@ -1,0 +1,82 @@
+﻿# Limiares de alertas e silêncio. TODOS os números ficam aqui, com a fonte.
+# Status: referência pública inicial, EM REVISÃO por agrônomos (não dizer "validado").
+pulverizacao:
+  temp_max: 30
+  temp_min: 10     # Embrapa (tecnologia de aplicação): mínima de 10 C; ideal 20-30; máxima 35
+  vento_min: 3
+  vento_max: 10
+  rh_min: 55
+  chuva_prob_max: 30
+  delta_t_min: 2
+  delta_t_max: 8
+  janela_horas: 3
+  hora_ini: 5      # só sugere janelas entre 5h e 19h (premissa da equipe)
+  hora_fim: 19
+  fonte: "CONFIRMADO em bulas registradas na ADAPAR-PR (T < 30 C, UR > 55%, vento 3-10 km/h, evitar inversão térmica; https://www.adapar.pr.gov.br/sites/adapar/files/documento/2026-02/_accent.pdf), Embrapa (10-35 C, ideal 20-30; https://sistemasdeproducao.cnptia.embrapa.br/FontesHTML/Ameixa/AmeixaEuropeia/tecnologia.htm) e guias de Delta T (2-8 ideal; https://sprayers101.com/delta-t/). Horários 5-19h e rain_prob <= 30%: premissa. Em revisão."
+geada:
+  tmin: 3
+  ajuste_relevo_c: 1.0     # em depressao (ar frio acumula) o alerta dispara com previsao 1 C mais alta
+  tpi_depressao_m: 2.0     # TPI <= -2 m = depressao; >= +2 m = topo (premissa)
+  tpi_topo_m: 2.0          # (reservado: ainda não usado no código)
+  fonte: "tmin 3 C (previsão a 2 m) CONFIRMADO como limiar conservador: a mínima na relva fica em média 4,2-6,3 C abaixo da do abrigo em noites de geada (https://agris.fao.org/search/en/providers/122436/records/67597eb3c7a957febdf90cea). Acúmulo de ar frio em baixadas: CONFIRMADO qualitativamente (https://master.iag.usp.br/pr/ensino/sinotica/aula12/); magnitude de 1 C: premissa conservadora. Em revisão."
+estresse:
+  z_max: -1.5
+  area_fraca_desvios: 1.0    # pixel "fraco" = NDVI abaixo de (referência - 1 desvio)
+  area_fraca_min_pct: 5      # abaixo disso a direção da área fraca não é informada
+  area_fraca_alerta_pct: 25  # alerta também quando >= 25% da área está fraca (premissa)
+  fonte: "regra estatística (z-score do NDVI); em revisão"
+colheita:
+  chuva_mm_max: 2
+  horas: 48
+  margem_dias_ciclo: 10   # considera pronta a lavoura a (ciclo_dias - margem) dias do plantio
+  fonte: "NÃO CONFIRMADO: as fontes encontradas tratam da umidade do grão na colheita (soja 13-15%) e não de um limite de chuva em 48 h; 2 mm / 48 h é premissa da equipe. Em revisão."
+silencio:
+  max_por_semana: 2
+  pausa_horas: 72
+  quieto_das: 20
+  quieto_ate: 6
+  # nota: o cron diário do n8n (WF2) roda às 06:05 para cair fora do horário quieto.
+logistica:
+  velocidade_kmh: 60
+  passo_km: 20
+  frete_rs_por_km: 6.0        # PREMISSA. A ANTT publica por tipo de carga e nº de eixos (Res. 6.084/2026: ex. granel sólido, 9 eixos = 8,3346/km + 782,50 de carga e descarga). Preencher com a linha do seu caminhão em https://calculadorafrete.antt.gov.br/
+  frete_fixo_rs: 0.0          # custo de carga e descarga da tabela da ANTT (somado ao km x coeficiente)
+  capacidade_caminhao_t: 30   # premissa
+  fator_linha_reta: 1.3       # usado só quando o OSRM está indisponível (estimativa)
+  fonte: "premissas; em revisão"
+relevo:
+  janela_m: 150            # raio da vizinhança do TPI
+agua:
+  ndmi_seco: 0.1           # NDMI abaixo disso = vegetação seca (premissa; calibrar por cultura)
+  ndmi_umido: 0.3
+  balanco_deficit_mm: -5   # chuva - ET0 previstas em 72 h
+  fonte: "NDMI = (B8A - B11)/(B8A + B11) é o índice padrão (https://custom-scripts.sentinel-hub.com/custom-scripts/sentinel-2/ndmi/); os cortes 0,1 e 0,3 e o saldo de -5 mm são premissa da equipe (a interpretação varia por cultura e fase). Em revisão."
+erosao:
+  chuva_ref_mm_mes: 250
+  declive_ref_pct: 15
+  baixo_ate: 0.25
+  medio_ate: 0.6
+  fonte: "índice relativo inspirado na RUSLE (chuva x declive x cobertura x solo); premissa; NÃO é perda de solo em t/ha"
+zonas:
+  k: 3
+  min_pixels: 30
+
+# Rastreabilidade das regras de alerta (mostrada na página de relatório). Conferido na web em 26/11/2026.
+# NÃO é validação por agrônomo. Detalhes e links em docs/VALIDACAO_REGRAS.md.
+validacao_regras:
+  pulverizacao: {status: confirmado, resumo: "T < 30 C, UR > 55%, vento 3-10 km/h e Delta T 2-8 aparecem em bulas (ADAPAR-PR), Embrapa e guias técnicos. Horário e chance de chuva: premissa.", fontes: ["https://www.adapar.pr.gov.br/sites/adapar/files/documento/2026-02/_accent.pdf", "https://sprayers101.com/delta-t/"]}
+  geada: {status: parcial, resumo: "Limiar de 3 C na previsão a 2 m é conservador: na relva a mínima fica em média 4,2-6,3 C abaixo da do abrigo. O ajuste de 1 C por relevo é premissa (o acúmulo de ar frio em baixadas é confirmado, a magnitude não).", fontes: ["https://agris.fao.org/search/en/providers/122436/records/67597eb3c7a957febdf90cea", "https://master.iag.usp.br/pr/ensino/sinotica/aula12/"]}
+  estresse: {status: premissa, resumo: "z-score do NDVI e fração de área fraca são métodos estatísticos; os cortes (z < -1,5; 25% da área) são premissa da equipe.", fontes: []}
+  colheita: {status: premissa, resumo: "Não achamos limite de chuva para colher. A literatura trata da umidade do grão (soja 13-15%). 48 h com até 2 mm é premissa.", fontes: []}
+  frete: {status: premissa, resumo: "R$ 6/km é estimativa. A ANTT publica piso por tipo de carga e nº de eixos (Res. 6.084/2026).", fontes: ["https://calculadorafrete.antt.gov.br/"]}
+  umidade_ndmi: {status: premissa, resumo: "Índice padrão; cortes de classe são premissa.", fontes: ["https://custom-scripts.sentinel-hub.com/custom-scripts/sentinel-2/ndmi/"]}
+  erosao: {status: premissa, resumo: "Índice relativo inspirado na RUSLE; não é perda de solo.", fontes: []}
+  relevo_classes: {status: confirmado, resumo: "Classes de declividade da Embrapa: plano 0-3%, suave ondulado 3-8%, ondulado 8-20%, forte ondulado 20-45%.", fontes: ["https://www.embrapa.br/en/web/agencia-de-informacao-tecnologica/territorios/territorio-mata-sul-pernambucana/caracteristicas-do-territorio/recursos-naturais/relevo"]}
+
+# Atribuições obrigatórias das fontes de dados (aparecem no rodapé da página de relatório).
+atribuicoes:
+  - "Dados meteorológicos: Open-Meteo.com (CC BY 4.0). O plano gratuito é só para uso não comercial; uso comercial exige assinatura."
+  - "Imagens: contém dados modificados do Copernicus Sentinel-2 (ESA), via AWS Earth Search (Element 84)."
+  - "Relevo: Copernicus DEM GLO-30 (ESA)."
+  - "Solo: SoilGrids (ISRIC, CC BY 4.0), estimativa modelada de 250 m, não é laudo."
+  - "Rotas: OSRM / OpenStreetMap contributors (servidor de demonstração)."
