@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="logo">
+    <text x="8" y="36" class="logo-t">BALK</text>
+    <rect x="2" y="41" width="3" height="12" fill="#FFDF00" />
+    <rect x="8" y="44" width="50" height="3" fill="#009C3B" />
+    <circle cx="66" cy="45.5" r="4.5" fill="#FFDF00" stroke="#009C3B" stroke-width="2" />
+    <rect x="74" y="44" width="50" height="3" fill="#FFDF00" />
+    <rect x="127" y="41" width="3" height="12" fill="#009C3B" />
+  </symbol>
+
+  <symbol id="landscape">
+    <rect width="1200" height="280" fill="#F4F9EE" />
+    <circle cx="1010" cy="74" r="34" fill="#FFDF00" />
+    <path d="M820 96 A230 70 0 0 1 960 34" fill="none" stroke="#009C3B" stroke-width="2.5" stroke-dasharray="2 7"
+      stroke-linecap="round" />
+    <circle cx="960" cy="34" r="6" fill="#FFDF00" stroke="#009C3B" stroke-width="2.5" />
+    <path d="M0 150 C180 100 360 130 560 108 S960 96 1200 126 V280 H0Z" fill="#CFE8B9" />
+    <clipPath id="c1">
+      <path d="M0 170 C220 120 420 160 640 132 S1000 118 1200 150 V280 H0Z" />
+    </clipPath>
+    <path d="M0 170 C220 120 420 160 640 132 S1000 118 1200 150 V280 H0Z" fill="#8CC66F" />
+    <g clip-path="url(#c1)">
+      <path d="M0 140 C260 110 520 152 760 126 S1100 104 1200 122" fill="none" stroke="#4E9A43" stroke-width="2.5"
+        opacity=".6" />
+      <path d="M0 147 C260 117 520 159 760 133 S1100 111 1200 129" fill="none" stroke="#4E9A43" stroke-width="2.5"
+        opacity=".6" />
+      <path d="M0 154 C260 124 520 166 760 140 S1100 118 1200 136" fill="none" stroke="#4E9A43" stroke-width="2.5"
+        opacity=".6" />
+      <path d="M0 161 C260 131 520 173 760 147 S1100 125 1200 143" fill="none" stroke="#4E9A43" stroke-width="2.5"
+        opacity=".6" />
+      <path d="M0 168 C260 138 520 180 760 154 S1100 132 1200 150" fill="none" stroke="#4E9A43" stroke-width="2.5"
+        opacity=".6" />
+      <path d="M0 175 C260 145 520 187 760 161 S1100 139 1200 157" fill="none" stroke="#4E9A43" stroke-width="2.5"
+        opacity=".6" />
+      <path d="M0 182 C260 152 520 194 760 168 S1100 146 1200 164" fill="none" stroke="#4E9A43" stroke-width="2.5"
+        opacity=".6" />
+    </g>
+    <clipPath id="c2">
+      <path d="M0 214 C260 176 520 206 760 184 S1060 172 1200 192 V280 H0Z" />
+    </clipPath>
+    <path d="M0 214 C260 176 520 206 760 184 S1060 172 1200 192 V280 H0Z" fill="#2F9B4E" />
+    <g clip-path="url(#c2)">
+      <line x1="-1140.0" y1="290" x2="530.4" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-1080.0" y1="290" x2="532.8" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-1020.0" y1="290" x2="535.2" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-960.0" y1="290" x2="537.6" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-900.0" y1="290" x2="540.0" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-840.0" y1="290" x2="542.4" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-780.0" y1="290" x2="544.8" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-720.0" y1="290" x2="547.2" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-660.0" y1="290" x2="549.6" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-600.0" y1="290" x2="552.0" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-540.0" y1="290" x2="554.4" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-480.0" y1="290" x2="556.8" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-420.0" y1="290" x2="559.2" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-360.0" y1="290" x2="561.6" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-300.0" y1="290" x2="564.0" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-240.0" y1="290" x2="566.4" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-180.0" y1="290" x2="568.8" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-120.0" y1="290" x2="571.2" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="-60.0" y1="290" x2="573.6" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="0.0" y1="290" x2="576.0" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="60.0" y1="290" x2="578.4" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="120.0" y1="290" x2="580.8" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="180.0" y1="290" x2="583.2" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="240.0" y1="290" x2="585.6" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="300.0" y1="290" x2="588.0" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="360.0" y1="290" x2="590.4" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="420.0" y1="290" x2="592.8" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="480.0" y1="290" x2="595.2" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="540.0" y1="290" x2="597.6" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="600.0" y1="290" x2="600.0" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="660.0" y1="290" x2="602.4" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="720.0" y1="290" x2="604.8" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="780.0" y1="290" x2="607.2" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="840.0" y1="290" x2="609.6" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="900.0" y1="290" x2="612.0" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="960.0" y1="290" x2="614.4" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="1020.0" y1="290" x2="616.8" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="1080.0" y1="290" x2="619.2" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="1140.0" y1="290" x2="621.6" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="1200.0" y1="290" x2="624.0" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="1260.0" y1="290" x2="626.4" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="1320.0" y1="290" x2="628.8" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+      <line x1="1380.0" y1="290" x2="631.2" y2="170" stroke="#1E7A3C" stroke-width="3" opacity=".55" />
+    </g>
+    <rect x="0" y="262" width="1200" height="18" fill="#FFDF00" />
+    <rect x="0" y="262" width="400" height="4" fill="#009C3B" />
+  </symbol>
+</svg>
