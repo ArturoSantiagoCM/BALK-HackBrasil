@@ -14,7 +14,7 @@ from pystac_client import Client
 from rasterio.warp import transform_bounds
 from rasterio.windows import from_bounds
 
-STAC_URL = "https://earthsearch.aws.element84.com/v1"
+STAC_URL = "https://earth-search.aws.element84.com/v1"
 S2_COLLECTION = "sentinel-2-l2a"
 DEM_COLLECTION = "cop-dem-glo-30"
 SOILGRIDS_CLAY = "https://files.isric.org/soilgrids/latest/data/clay/clay_0-5cm_mean.vrt"
