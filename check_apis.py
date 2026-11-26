@@ -10,7 +10,7 @@ CHECKS = {
                              {"latitude": -23.58, "longitude": -46.65, "start_date": "2025-01-01",
                               "end_date": "2025-01-03", "daily": "temperature_2m_mean"}),
     "Open-Meteo geocodificação": ("https://geocoding-api.open-meteo.com/v1/search", {"name": "Sorriso", "count": 1}),
-    "Earth Search (STAC)": ("https://earthsearch.aws.element84.com/v1/collections/sentinel-2-l2a", {}),
+    "Earth Search (STAC)": ("https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a", {}),
     "OSRM (demo)": ("https://router.project-osrm.org/route/v1/driving/-48.0,-15.7;-47.95,-16.25", {}),
 }
 
