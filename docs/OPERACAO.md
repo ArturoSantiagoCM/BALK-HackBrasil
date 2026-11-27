@@ -70,7 +70,11 @@ Em Docker: `docker compose up --build` (a imagem sobe em `BALK_ENV=production` e
 1. **Código de verificação = template de AUTENTICAÇÃO** na Meta (categoria própria, corpo com o código, geralmente botão de copiar). Crie e coloque o nome em `WHATSAPP_CODE_TEMPLATE_NAME`.
    Sem ele o código usa o template geral de utilidade, que a Meta pode reprovar por ser outra finalidade. **O envio real do código não foi testado** (sem conta Meta); o texto livre só chega se o produtor escreveu nas últimas 24 h.
 2. **Convite ao segundo contato:** `WHATSAPP_INVITE_TEMPLATE_NAME` (seção 5, item 9).
-3. **Satélite na demo (MapTiler, plano gratuito):** crie a conta em `cloud.maptiler.com` (sem cartão), copie a chave e coloque em `MAPTILER_KEY`. O mapa passa a abrir em satélite, com botão para alternar para ruas.
+3. **Camadas do mapa sem chave (27/11/2026):** satélite de alta resolução da Esri (abre primeiro; os termos da Esri vedam uso comercial sem a plataforma deles;
+   zoom real até 17 no interior), Sentinel-2 2025 sem nuvens (EOxCloudless, CC BY 4.0, 10 m), relevo com curvas de nível (OpenTopoMap, CC BY-SA, uso moderado),
+   ruas (OpenStreetMap), nomes por cima do satélite e sombreado do relevo (AWS Terrain Tiles). Todas com atribuição na tela; a política de segurança do site
+   libera só esses servidores. Para vender o serviço, troque por provedor com contrato.
+   **Satélite do MapTiler (opcional, plano gratuito):** crie a conta em `cloud.maptiler.com` (sem cartão), copie a chave e coloque em `MAPTILER_KEY`. Ele passa a ser a primeira camada.
    Verificado na página de preços (26/11/2026): o plano gratuito é para teste, protótipo e uso pessoal ou **não comercial**, inclui 100 mil requisições por mês (uma imagem de 256 px conta 1) e **pausa o serviço** ao esgotar a cota até o mês seguinte; exige o **logotipo do MapTiler** no mapa.
    O BALK mostra a atribuição escrita "© MapTiler"; **o logotipo em si ainda não foi adicionado** (confira as regras de uso no site deles antes da apresentação). A chave aparece nas requisições do navegador: restrinja-a ao seu domínio no painel do MapTiler e **não** a coloque no repositório.
    Uso comercial (produtor pagando) exige o plano Flex (US$ 30 por mês + extras) ou outro provedor. **Não testado com chave real** (sem conta): o formato da URL vem da documentação deles.

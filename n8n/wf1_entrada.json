@@ -42,33 +42,15 @@
       }
     },
     {
-      "name": "Texto da resposta",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "name": "Resposta e relatórios",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         520,
         0
       ],
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "name": "phone",
-              "value": "={{$('Webhook do canal').item.json.body.phone}}",
-              "type": "string"
-            },
-            {
-              "name": "channel",
-              "value": "={{$('Webhook do canal').item.json.body.channel}}",
-              "type": "string"
-            },
-            {
-              "name": "text",
-              "value": "={{$json.reply}}",
-              "type": "string"
-            }
-          ]
-        }
+        "jsCode": "const r = $json; const w = $('Webhook do canal').item.json.body; const out = [];\nout.push({json: {phone: w.phone, channel: w.channel, text: r.reply}});\n(r.messages || []).filter(m => m.kind === 'report').forEach(m => out.push({json: {phone: w.phone, channel: w.channel, text: m.text}}));\nreturn out;"
       }
     },
     {
@@ -185,7 +167,7 @@
       "main": [
         [
           {
-            "node": "Texto da resposta",
+            "node": "Resposta e relatórios",
             "type": "main",
             "index": 0
           }
@@ -199,7 +181,7 @@
         ]
       ]
     },
-    "Texto da resposta": {
+    "Resposta e relatórios": {
       "main": [
         [
           {

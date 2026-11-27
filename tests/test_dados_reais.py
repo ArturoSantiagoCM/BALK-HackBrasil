@@ -78,8 +78,8 @@ class _Asset:
 
 
 class _Item:
-    def __init__(self, assets, when="2026-11-20T13:00:00Z", cloud=5):
-        self.assets, self.id, self.properties = assets, "S2X_FAKE", {"eo:cloud_cover": cloud}
+    def __init__(self, assets, when="2026-11-20T13:00:00Z", cloud=5, props=None):
+        self.assets, self.id, self.properties = assets, "S2X_FAKE_" + when[:10], {"eo:cloud_cover": cloud, **(props or {})}
         self.datetime = datetime.fromisoformat(when.replace("Z", "+00:00"))
 
 
@@ -91,7 +91,7 @@ class _Search:
         return iter(self._items)
 
 
-def _fake_client(monkeypatch, tmp_path, with_dem=True, cloud_items=True):
+def _fake_client(monkeypatch, tmp_path, with_dem=True, cloud_items=True, items=None, props=None):
     reflect = dict(scale=0.0001, offset=-0.1)
     files = {"red": _utm_tif(tmp_path / "s_red.tif", 3000), "nir": _utm_tif(tmp_path / "s_nir.tif", 5000),
              "scl": _utm_tif(tmp_path / "s_scl.tif", 4, "uint8", 20.0, 100),
@@ -115,11 +115,14 @@ def _fake_client(monkeypatch, tmp_path, with_dem=True, cloud_items=True):
         def search(self, collections, **kw):
             if collections == [sentinel.S2_COLLECTION]:
                 self.last_query = kw
-                return _Search([_Item(assets)] if cloud_items else [])
+                if items is not None:
+                    return _Search(items(assets, files))
+                return _Search([_Item(assets, props=props)] if cloud_items else [])
             return _Search([_Item({"data": _Asset(str(dem))})] if with_dem else [])
     monkeypatch.setattr(sentinel, "Client", FakeClient)
     monkeypatch.setattr(sentinel, "SOILGRIDS_CLAY", str(tmp_path / "nao_existe.vrt"))  # SoilGrids fora do ar
     monkeypatch.setattr(sentinel, "SOILGRIDS_PH", str(tmp_path / "nao_existe.vrt"))
+    monkeypatch.setattr(sentinel, "soilgrids_point", lambda lat, lon: {})  # a reserva por ponto também fora do ar (sem rede no teste)
 
 
 def test_fetch_sentinel_completo_com_stac_falso_e_o_motor_geo_le_o_resultado(monkeypatch, tmp_path):
@@ -211,3 +214,75 @@ def test_modo_auto_sem_stac_gera_pacote_simulado_mas_modo_real_falha(monkeypatch
     monkeypatch.setenv("DATA_MODE", "real")
     with pytest.raises(RuntimeError):
         package.build_local_package(Producer(id=11, phone="z", lat=LAT, lon=LON), NOW)
+
+
+# ---------- correções achadas rodando com dados reais (27/11/2026) ----------
+def test_deslocamento_ja_aplicado_pelo_earth_search_nao_e_aplicado_de_novo(monkeypatch, tmp_path):
+    """Earth Search v1: earthsearch:boa_offset_applied = true. Aplicar -0,1 de novo deixava o vermelho negativo e o NDVI > 1."""
+    _fake_client(monkeypatch, tmp_path, props={"earthsearch:boa_offset_applied": True})
+    out = tmp_path / "w"
+    meta = sentinel.fetch_sentinel_clip(LAT, LON, out, today=NOW)
+    s = analyze_python(out, LAT, LON)
+    assert meta["offset_ja_aplicado"] is True
+    assert s.ndvi_mean == pytest.approx((0.5 - 0.3) / (0.5 + 0.3), abs=1e-3)  # DN x 1e-4, sem o -0,1
+
+
+def test_reflectancia_negativa_nunca_vira_indice_fora_de_menos_1_a_1():
+    from app.geo.indices import ndvi
+    v = ndvi(np.array([-0.03, 0.05, 0.0]), np.array([0.3, 0.4, 0.0]))
+    assert np.isnan(v[0]) and v[1] == pytest.approx(0.35 / 0.45) and np.isnan(v[2])
+
+
+def test_escolhe_a_cena_mais_nova_que_esta_limpa_sobre_o_talhao(monkeypatch, tmp_path):
+    nublada = _utm_tif(tmp_path / "scl_nuvem.tif", 9, "uint8", 20.0, 100)  # SCL 9 = nuvem alta
+    def itens(assets, files):
+        a_nub = dict(assets, scl=_Asset(str(nublada)))
+        return [_Item(assets, when="2026-11-11T13:00:00Z", cloud=40), _Item(a_nub, when="2026-11-21T13:00:00Z", cloud=3)]
+    _fake_client(monkeypatch, tmp_path, items=itens)
+    meta = sentinel.fetch_sentinel_clip(LAT, LON, tmp_path / "w", today=NOW)
+    # a de 21/11 tem só 3% de nuvem no recorte de 100 km, mas o talhão está coberto: fica a de 11/11
+    assert meta["scene_date"] == "2026-11-11" and meta["util_no_talhao"] == 1.0
+    assert [c["util"] for c in meta["cenas_conferidas"]] == [0.0, 1.0]
+
+
+def test_todas_as_cenas_com_o_talhao_coberto_viram_erro_claro(monkeypatch, tmp_path):
+    nublada = _utm_tif(tmp_path / "scl_nuvem.tif", 9, "uint8", 20.0, 100)
+    _fake_client(monkeypatch, tmp_path, items=lambda assets, files: [_Item(dict(assets, scl=_Asset(str(nublada))))])
+    with pytest.raises(RuntimeError, match="talhão visível"):
+        sentinel.fetch_sentinel_clip(LAT, LON, tmp_path / "w", today=NOW)
+
+
+def test_solo_vem_pela_consulta_por_ponto_quando_o_mapa_do_soilgrids_falha(monkeypatch, tmp_path):
+    _fake_client(monkeypatch, tmp_path)
+    monkeypatch.setattr(sentinel, "soilgrids_point", lambda lat, lon: {"clay": 27.7, "ph": 4.9})
+    out = tmp_path / "w"
+    meta = sentinel.fetch_sentinel_clip(LAT, LON, out, today=NOW)
+    s = analyze_python(out, LAT, LON)
+    assert meta["clay"] == "ponto" and meta["ph"] == "ponto"
+    assert s.clay_pct == pytest.approx(27.7, abs=0.05) and s.ph == pytest.approx(4.9, abs=0.05)
+
+
+def test_soilgrids_ponto_le_a_resposta_da_api(monkeypatch):
+    class R:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"properties": {"layers": [
+                {"name": "clay", "unit_measure": {"d_factor": 10}, "depths": [{"values": {"mean": 277}}]},
+                {"name": "phh2o", "unit_measure": {"d_factor": 10}, "depths": [{"values": {"mean": 49}}]}]}}
+    monkeypatch.setattr(requests, "get", lambda *a, **k: R())
+    assert sentinel.soilgrids_point(-12.56, -55.9) == {"clay": 27.7, "ph": 4.9}
+    monkeypatch.setattr(requests, "get", lambda *a, **k: (_ for _ in ()).throw(TimeoutError("fora")))
+    assert sentinel.soilgrids_point(-12.56, -55.9) == {}
+
+
+def test_talhao_quase_todo_coberto_vira_sem_imagem_e_nao_finge_analise(monkeypatch):
+    from app import db
+    from app.models import Producer, SpatialStats
+    from app.service import analyze_producer
+    p = db.create_producer(Producer(phone="+5565999991212", consent=True, state="ATIVO", lat=LAT, lon=LON))
+    monkeypatch.setattr("app.service.analyze", lambda *a, **k: SpatialStats(scene_date=NOW.strftime("%Y-%m-%d"), valid_fraction=0.04,
+                                                                             area_ha=7.0, slope_mean_pct=3.0))
+    res = analyze_producer(p.id, full=True, now=NOW)
+    assert res["sem_imagem"] is True and res["stats"] is None and res["ranking"] == []

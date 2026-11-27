@@ -125,7 +125,7 @@ def test_conversa_completa_pelo_webhook_com_pin_de_localizacao(monkeypatch):
     assert db.get_producer_by_phone("5500900001236").state == "ATIVO"
     textos = [m["text"] for m in OUTBOX]
     assert any("Cadastro pronto" in t for t in textos)
-    rel = next(m for m in OUTBOX if "viabilidade" in m["text"])
+    rel = next(m for m in OUTBOX if "/100" in m["text"])
     assert "/r/" in rel["text"] and rel["media_url"].endswith("/img/mapa.png")  # relatório com link e o mapa como imagem
 
 

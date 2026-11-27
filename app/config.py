@@ -88,6 +88,10 @@ def production_problems() -> list[str]:
         )
     if os.getenv("TWILIO_ACCOUNT_SID") and not os.getenv("TWILIO_AUTH_TOKEN"):
         p.append("TWILIO_ACCOUNT_SID definido sem TWILIO_AUTH_TOKEN")
+    if os.getenv("OPENWA_URL") and len(os.getenv("OPENWA_WEBHOOK_SECRET", "")) < 16:
+        p.append("OPENWA_URL definido sem OPENWA_WEBHOOK_SECRET (16+ caracteres; o webhook do OpenWA ficaria sem assinatura)")
+    if os.getenv("SMSGATE_URL") and not os.getenv("SMSGATE_WEBHOOK_KEY"):
+        p.append("SMSGATE_URL definido sem SMSGATE_WEBHOOK_KEY (a chave de assinatura que aparece no app do celular)")
     return p
 
 
@@ -119,40 +123,53 @@ def auth_secret() -> str:
     return os.getenv("BALK_AUTH_SECRET") or "balk-dev-only-secret-not-for-production"
 
 
-def map_tiles() -> dict:
-    """Fundos do mapa do site. `layers` = lista de camadas escolhíveis (a primeira é a inicial).
+def _a(url: str, text: str) -> str:
+    return f'<a href="{url}" target="_blank" rel="noopener">{text}</a>'
 
-    Ruas: OpenStreetMap (demo; uso em escala exige provedor próprio, ver OPERACAO). Satélite: MapTiler, só se houver
-    MAPTILER_KEY (plano gratuito do MapTiler é para teste e uso não comercial). `url`, `attribution` e `max_zoom` repetem a
-    camada inicial, por compatibilidade. MAP_TILES_URL (se definido) substitui a camada de ruas.
-    """
-    osm = {
-        "id": "ruas",
-        "nome": "Ruas",
-        "url": os.getenv(
-            "MAP_TILES_URL", "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        ),
-        "attribution": os.getenv(
-            "MAP_TILES_ATTRIBUTION", "© OpenStreetMap contributors"
-        ),
-        "max_zoom": int(os.getenv("MAP_TILES_MAXZOOM", "19")),
-    }
-    layers = [osm]
+
+def map_tiles() -> dict:
+    """Camadas do mapa do site. `layers` é uma lista; a primeira de tipo "base" abre selecionada.
+
+    Tipos: "base" (o produtor escolhe uma), "overlay" (liga e desliga por cima) e "dem" (relevo que vira sombreado no navegador).
+    Fontes, todas sem chave (conferidas em 27/11/2026) e só para demonstração e uso NÃO comercial até alguém decidir o contrário:
+    - Esri World Imagery: satélite de alta resolução; os termos da Esri vedam uso comercial sem chave da plataforma deles.
+    - EOxCloudless 2025 (Sentinel-2, 10 m): CC BY 4.0, mosaico de 2025.
+    - OpenTopoMap (curvas de nível e relevo): CC BY-SA, uso moderado.
+    - AWS Terrain Tiles (relevo aberto) para o sombreado.
+    - OpenStreetMap (ruas): demo; uso em escala exige provedor próprio.
+    Com MAPTILER_KEY, o satélite do MapTiler vira o primeiro (plano gratuito: teste e uso não comercial).
+    `url`, `attribution` e `max_zoom` repetem a camada inicial, por compatibilidade. MAP_TILES_URL substitui a de ruas."""
+    osm_attr = _a("https://www.openstreetmap.org/copyright", "© OpenStreetMap contributors")
+    esri_attr = "Imagens: Esri, Maxar, Earthstar Geographics e a comunidade GIS"
+    layers = [
+        {"id": "satelite", "tipo": "base", "nome": "Satélite", "descricao": "Imagem de satélite de alta resolução (Esri)",
+         "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+         "attribution": esri_attr, "max_zoom": 17},  # zoom 18 falta em boa parte do interior (vem a imagem "Map data not yet available")
+        {"id": "sentinel", "tipo": "base", "nome": "Sentinel-2 (2025)", "descricao": "Satélite europeu, 10 m por pixel, mosaico de 2025 sem nuvens",
+         "url": "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/{z}/{y}/{x}.jpg",
+         "attribution": _a("https://cloudless.eox.at", "EOxCloudless") + " por EOX IT Services GmbH (contém dados Copernicus Sentinel modificados, 2025)",
+         "max_zoom": 14},
+        {"id": "relevo", "tipo": "base", "nome": "Relevo e curvas de nível", "descricao": "Mapa topográfico (OpenTopoMap)",
+         "url": "https://tile.opentopomap.org/{z}/{x}/{y}.png",
+         "attribution": _a("https://opentopomap.org", "OpenTopoMap") + " (" + _a("https://creativecommons.org/licenses/by-sa/3.0/", "CC-BY-SA") + ") · " + osm_attr,
+         "max_zoom": 17},
+        {"id": "ruas", "tipo": "base", "nome": "Ruas", "descricao": "Mapa de ruas e estradas (OpenStreetMap)",
+         "url": os.getenv("MAP_TILES_URL", "https://tile.openstreetmap.org/{z}/{x}/{y}.png"),
+         "attribution": os.getenv("MAP_TILES_ATTRIBUTION", osm_attr), "max_zoom": int(os.getenv("MAP_TILES_MAXZOOM", "19"))},
+        {"id": "nomes", "tipo": "overlay", "nome": "Nomes e divisas", "descricao": "Cidades, estradas e limites por cima do satélite (Esri)",
+         "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+         "attribution": "Rótulos: Esri", "max_zoom": 17, "ligada": True},
+        {"id": "sombreado", "tipo": "dem", "nome": "Sombreado do relevo", "descricao": "Realça morros e baixadas por cima do mapa (dados abertos AWS Terrain Tiles)",
+         "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png", "encoding": "terrarium",
+         "attribution": _a("https://registry.opendata.aws/terrain-tiles/", "Terrain Tiles (AWS Open Data)"), "max_zoom": 15, "ligada": False},
+    ]
     key = os.getenv("MAPTILER_KEY", "").strip()
     if key:
-        sat = {
-            "id": "satelite",
-            "nome": "Satélite",
-            "url": f"https://api.maptiler.com/tiles/satellite-v2/{{z}}/{{x}}/{{y}}.jpg?key={key}",
-            "attribution": '<a href="https://www.maptiler.com/copyright/" target="_blank" rel="noopener">© MapTiler</a> '
-            '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>',
-            "max_zoom": 20,
-        }
-        layers = [sat, osm]
-    return {
-        **{k: layers[0][k] for k in ("url", "attribution", "max_zoom")},
-        "layers": layers,
-    }
+        layers.insert(0, {"id": "satelite_maptiler", "tipo": "base", "nome": "Satélite (MapTiler)", "descricao": "Satélite do MapTiler (precisa da chave)",
+                          "url": f"https://api.maptiler.com/tiles/satellite-v2/{{z}}/{{x}}/{{y}}.jpg?key={key}",
+                          "attribution": _a("https://www.maptiler.com/copyright/", "© MapTiler") + " " + osm_attr, "max_zoom": 20})
+    first = next(x for x in layers if x["tipo"] == "base")
+    return {**{k: first[k] for k in ("url", "attribution", "max_zoom")}, "layers": layers}
 
 
 def report_ttl_days() -> int:

@@ -20,7 +20,8 @@ def cmd_check() -> int:
     print(f"ambiente: {config.env()} | dados: {config.data_mode()} | motor: {config.engine_name()}")
     print(f"banco: {config.db_path()} | work: {config.work_root()} | url pública: {config.public_base_url()}")
     for k in ("WHATSAPP_TOKEN", "WHATSAPP_PHONE_ID", "WHATSAPP_APP_SECRET", "WHATSAPP_VERIFY_TOKEN", "WHATSAPP_TEMPLATE_NAME",
-              "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM", "ANTHROPIC_API_KEY"):
+              "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM", "OPENWA_URL", "OPENWA_SESSION", "OPENWA_API_KEY",
+              "OPENWA_WEBHOOK_SECRET", "SMSGATE_URL", "SMSGATE_USER", "SMSGATE_PASSWORD", "SMSGATE_WEBHOOK_KEY", "ANTHROPIC_API_KEY"):
         import os
         print(f"  {k:24s} {'definida' if os.getenv(k) else '-'}")
     try:
@@ -43,6 +44,8 @@ def _find(phone: str):
 
 
 def main(argv: list[str]) -> int:
+    from dotenv import load_dotenv
+    load_dotenv()  # o mesmo .env que o servidor lê (sem isso o "check" diria que falta tudo)
     if not argv:
         print(__doc__)
         return 2

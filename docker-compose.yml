@@ -7,7 +7,7 @@
 services:
   api:
     build: .
-    ports: ["8000:8000"]
+    ports: ["127.0.0.1:8000:8000"]   # só o proxy https (Caddy) na frente fala com a API; ninguém de fora entra por http
     env_file: [.env]
     environment:
       - BALK_ENV=${BALK_ENV:-production}
@@ -39,6 +39,21 @@ services:
       - ./n8n:/imports:ro   # importe os JSON de /imports pela interface
     depends_on: [api]
     restart: unless-stopped
+  openwa:
+    # WhatsApp da DEMONSTRAÇÃO (gateway não oficial, MIT; ver docs/CANAIS_REAIS.md). STATUS: não testado nesta máquina.
+    # No .env do BALK: OPENWA_URL=http://openwa:2785. Chave do painel: docker compose exec openwa cat /app/data/.api-key
+    # Webhook do OpenWA para o BALK: http://api:8000/webhooks/openwa (por isso o SSRF_ALLOWED_HOSTS=api).
+    profiles: ["openwa"]
+    image: ghcr.io/rmyndharis/openwa:latest   # fixe a versão (ex.: :0.32.1) depois de testar
+    ports: ["127.0.0.1:2785:2785"]   # painel e API só na própria máquina (abra por túnel SSH)
+    environment:
+      - NODE_ENV=production
+      - SSRF_ALLOWED_HOSTS=api
+      - TZ=America/Sao_Paulo
+    volumes:
+      - openwa_data:/app/data
+    restart: unless-stopped
 volumes:
   balk_db:
   n8n_data:
+  openwa_data:

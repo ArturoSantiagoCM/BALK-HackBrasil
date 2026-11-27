@@ -221,14 +221,114 @@ LIMITES = [
 ]
 
 
+CONF_PT = {"alta": "alta", "media": "média", "baixa": "baixa"}
+TIPO = {"pulverizacao": "Pulverização", "geada": "Geada", "estresse": "Estresse da lavoura", "colheita": "Colheita"}
+
+
+def hourly_table(weather: Weather) -> list[dict]:
+    """O clima hora a hora com as contas das regras já feitas: Delta T, se a hora serve para pulverizar e se há risco de geada.
+    Permite ao técnico (ou a outro algoritmo) refazer a decisão a partir do dado bruto."""
+    from app.alerts.calc import delta_t
+    from app.alerts.rules import _ok_spray
+    R = config.rules()
+    cp, tmin = R["pulverizacao"], R["geada"]["tmin"]
+    out = []
+    for h in weather.hours:
+        out.append({"hora": h["time"], "temp_c": h["temp"], "ur_pct": h["rh"], "chuva_prob_pct": h["rain_prob"], "chuva_mm": h["rain_mm"],
+                    "vento_kmh": h["wind_kmh"], "et0_mm": h.get("et0"), "delta_t": round(delta_t(h["temp"], h["rh"]), 1),
+                    "serve_pulverizar": bool(_ok_spray(h, cp)), "geada": h["temp"] <= tmin})
+    return out
+
+
+def conclusions(p: Producer, stats: Optional[SpatialStats], ranking: list[Viability], relations_: Optional[dict],
+                alerts: list[Alert], hist: Optional[dict], now: datetime) -> list[str]:
+    """As conclusões amarradas: nota, fator limitante, terreno, água, vigor contra a referência e alertas. Texto para o técnico."""
+    from app.message.templates import CROPS, Report, terrain_lines
+    nome = lambda c: CROPS["pt"].get(c, c).capitalize()  # noqa: E731
+    out = []
+    if stats is None:
+        out.append("Sem imagem de satélite adequada: só a previsão do tempo foi usada (só alertas de clima, sem nota de viabilidade).")
+    else:
+        age = (now.date() - datetime.fromisoformat(stats.scene_date).date()).days if stats.scene_date else None
+        vf = f"; {stats.valid_fraction * 100:.0f}% dos pixels sem nuvem" if stats.valid_fraction is not None else ""
+        out.append(f"Cena Sentinel-2 de {stats.scene_date or 'data desconhecida'}" + (f" ({age} dias)" if age is not None else "") + vf
+                   + f"; área analisada de {stats.area_ha:.2f} ha.")
+    ordered = sorted(ranking, key=lambda v: -v.score)
+    mine = next((v for v in ranking if v.crop == p.crop), None)
+    for v in ([mine] if mine else []) + [x for x in ordered[:1] if x is not mine]:
+        lim = FACTOR_LABEL.get(v.limiting_factor, (v.limiting_factor, ""))[0]
+        fv = v.factors.get(v.limiting_factor)
+        out.append(f"{nome(v.crop)}{' (cultura informada)' if v is mine else ' (melhor nota)'}: {v.score}/100, confiança {CONF_PT.get(v.confidence, v.confidence)}. "
+                   f"Fator que mais limita: {lim}" + (f" (nota do fator {fv:.2f})" if fv is not None else "") + f". {v.orientation}")
+    if stats is not None:
+        out += terrain_lines(Report(ranking=ranking, stats=stats, relations=relations_), "pt")
+        if stats.ndvi_mean is not None:
+            if hist and hist.get("std"):
+                z = (stats.ndvi_mean - hist["mean"]) / hist["std"]
+                ref = "safras anteriores do mesmo talhão e cultura, na mesma fase" if hist.get("referencia") == "historico" else "série recente desta safra"
+                out.append(f"Vigor: NDVI {stats.ndvi_mean:.2f} contra {ref} (média {hist['mean']:.2f}, desvio {hist['std']:.2f}, {hist['n']} observações): z = {z:.2f}.")
+            elif stats.ndvi_ref_mean is not None and stats.ndvi_ref_std:
+                z = (stats.ndvi_mean - stats.ndvi_ref_mean) / stats.ndvi_ref_std
+                out.append(f"Vigor: sem histórico do talhão, a referência é a vizinhança da cena (média {stats.ndvi_ref_mean:.2f}, desvio {stats.ndvi_ref_std:.2f}): "
+                           f"z = {z:.2f}, confiança baixa.")
+    for a in alerts:
+        out.append(f"Alerta de {TIPO.get(a.type, a.type).lower()}: {a.action} (confiança {CONF_PT.get(a.confidence, a.confidence)}).")
+    if not alerts:
+        out.append("Nenhum alerta novo: nenhuma regra foi atendida, ou o silêncio (72 h por tipo, limites por dia e semana) segurou.")
+    return out
+
+
+def method(meta: dict) -> list[dict]:
+    """As fórmulas e os parâmetros em uso (os números vêm de rules.yaml e crops.yaml, os mesmos que o código usa)."""
+    R = config.rules()
+    pc, g, e, s, z = R["pulverizacao"], R["geada"], R["erosao"], R["estresse"], R.get("zonas", {})
+    return [
+        {"nome": "Índices de vegetação (Sentinel-2 L2A)", "formula": "NDVI = (B08 − B04) / (B08 + B04); NDMI = (B8A − B11) / (B8A + B11); NDRE = (B8A − B05) / (B8A + B05)",
+         "parametros": "Pixels de nuvem, sombra e neve descartados pela classificação de cena (SCL: só classes 4 e 5 entram)."},
+        {"nome": "Declividade e direção da encosta", "formula": "Método de Horn (janela 3×3) sobre o modelo de elevação; declividade em %",
+         "parametros": "Copernicus DEM 30 m, reamostrado para 10 m; bordas extrapoladas linearmente."},
+        {"nome": "Posição no relevo (TPI)", "formula": "TPI = elevação − média da elevação na vizinhança",
+         "parametros": f"Raio de {R.get('relevo', {}).get('janela_m', 150)} m; negativo = baixada, positivo = topo; bordas sem vizinhança ficam sem valor."},
+        {"nome": "Zonas de manejo", "formula": "k-means sobre NDVI, declividade, TPI e NDMI padronizados (média 0, desvio 1)",
+         "parametros": f"k = {z.get('k', 3)} zonas; mínimo de {z.get('min_pixels', 30)} pixels; a zona de menor NDVI é a 'mais fraca'."},
+        {"nome": "Área fraca e sua direção", "formula": "pixel fraco: NDVI < referência − d × desvio; direção = vetor do centro da área ao centro dos pixels fracos",
+         "parametros": f"d = {s.get('area_fraca_desvios', 1.0)}; direção só informada com {s.get('area_fraca_min_pct', 5)}% ou mais da área."},
+        {"nome": "Índice de erosão (relativo, não é t/ha)", "formula": "índice = S × (0,4·R + 0,4·C + 0,2·K), cortado em 0..1",
+         "parametros": f"S = declividade / {e['declive_ref_pct']}%; R = chuva mensal / {e['chuva_ref_mm_mes']} mm; C = 1 − NDVI; K = 1,15 − 0,011 × argila%. "
+                       f"Baixo até {e['baixo_ate']}, médio até {e['medio_ate']}, alto acima."},
+        {"nome": "Nota de viabilidade (0 a 100)", "formula": "nota = 100 × Σ(peso × f(x)) ÷ Σ pesos, com f(x) trapezoidal: 0 fora de [a, d]; sobe de a até b; 1 entre b e c; desce de c até d",
+         "parametros": "Faixas a, b, c, d e pesos por cultura em crops.yaml. Se algum fator dá 0, a nota fica em no máximo 40. Fator sem dado sai da conta e a confiança cai."},
+        {"nome": "Pulverização", "formula": "janela de 3 h em que todas as horas atendem: temperatura, vento, umidade, chuva e Delta T. Delta T = T − Tbu (Stull, 2011)",
+         "parametros": f"T {pc['temp_min']}–{pc['temp_max']} °C; vento {pc['vento_min']}–{pc['vento_max']} km/h; UR ≥ {pc['rh_min']}%; chuva ≤ {pc['chuva_prob_max']}%; "
+                       f"Delta T {pc['delta_t_min']}–{pc['delta_t_max']}; entre {pc['hora_ini']}h e {pc['hora_fim']}h."},
+        {"nome": "Geada", "formula": "mínima prevista + ajuste do relevo ≤ limite",
+         "parametros": f"limite {g['tmin']} °C na previsão a 2 m; ajuste de até −{g['ajuste_relevo_c']} °C nas baixadas (hipótese em validação)."},
+        {"nome": "Estresse (vigor)", "formula": "z = (NDVI atual − média da referência) ÷ desvio da referência",
+         "parametros": f"alerta se z < {s['z_max']} ou se {s['area_fraca_alerta_pct']}% ou mais da área estiver fraca. Referência: safras anteriores (≥3 pontos, ±15 dias do ciclo) > série recente (≥4) > vizinhança."},
+        {"nome": "Balanço de água (72 h)", "formula": "saldo = chuva prevista − evapotranspiração de referência (ET0) prevista",
+         "parametros": f"atenção quando a umidade da vegetação é baixa (NDMI < {R['agua']['ndmi_seco']}) e o saldo ≤ {R['agua']['balanco_deficit_mm']} mm."},
+    ]
+
+
 def build(p: Producer, now: datetime, weather: Weather, stats: Optional[SpatialStats], ranking: list[Viability],
           climate: Optional[dict], alerts: list[Alert], relations_: Optional[dict], messages: list[dict],
-          meta: dict) -> dict:
-    """Pacote completo do relatório (JSON). A página lê só isto."""
+          meta: dict, extras: Optional[dict] = None) -> dict:
+    """Pacote completo do relatório (JSON). A página lê só isto, e o mesmo pacote sai para download (análise externa).
+    `extras`: {"referencia_vigor": dict, "safras": list} vindos do histórico do talhão."""
+    extras = extras or {}
     planting_month = int(p.planting_date[5:7]) if p.planting_date else None
     sim = (meta.get("source") == "simulado" or weather.source == "simulado" or (climate or {}).get("source") == "simulado")
     return {
-        "versao": 1, "gerado_em": now.isoformat(timespec="seconds"), "lang": "pt",
+        "versao": 2, "gerado_em": now.isoformat(timespec="seconds"), "lang": "pt",
+        "conclusoes": conclusions(p, stats, ranking, relations_, alerts, extras.get("referencia_vigor"), now),
+        "estatisticas": stats.model_dump() if stats else None,
+        "ranking": [v.model_dump() for v in ranking],
+        "clima_horas": hourly_table(weather),
+        "clima_mensal": (climate or {}).get("monthly"),
+        "clima_mensal_fonte": (climate or {}).get("source"),
+        "historico": {"referencia_vigor": extras.get("referencia_vigor"), "safras": extras.get("safras") or []},
+        "metodo": method(meta),
+        "versao_regras": config.rules().get("versao", "em revisão (ver docs/VALIDACAO_REGRAS.md)"),
         "simulado": sim,
         "produtor": {"cultura": p.crop, "plantio": p.planting_date, "canal": p.channel,
                      "lat": round(p.lat, 2), "lon": round(p.lon, 2),  # ~1 km: o link não revela a lavoura exata

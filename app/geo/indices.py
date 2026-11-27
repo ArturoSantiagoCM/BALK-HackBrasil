@@ -5,10 +5,12 @@ SCL_OK = (4, 5)  # vegetação e solo nu (SCL: 3 sombra, 8/9 nuvem, 10 cirro, 11
 
 
 def norm_diff(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """(a - b) / (a + b), NaN onde a soma não é positiva."""
+    """(a - b) / (a + b), NaN onde a soma não é positiva ou onde alguma reflectância é negativa (pixel escuro demais ou
+    escala errada: um índice fora de -1..1 nunca pode chegar ao produtor)."""
     with np.errstate(invalid="ignore", divide="ignore"):
         out = (a - b) / (a + b)
-    return np.where(np.isfinite(out) & ((a + b) > 0), out, np.nan)
+    ok = np.isfinite(out) & ((a + b) > 0) & (a >= 0) & (b >= 0)
+    return np.where(ok, out, np.nan)
 
 
 def ndvi(red, nir):

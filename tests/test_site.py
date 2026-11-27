@@ -16,7 +16,7 @@ from tests.conftest import NOW
 from tests.test_talhoes import quadrado
 
 TEL = "65 99999-0001"
-TEL_N = "+65999990001"
+TEL_N = "+5565999990001"  # o site põe o 55 em número com DDD e sem código do país
 LAT, LON = -23.5874, -46.6576
 
 
@@ -61,36 +61,41 @@ def test_config_publica_traz_consentimento_versionado_mapa_e_limites():
     assert "{z}" in r["mapa"]["url"] and r["limites"]["area_min_ha"] > 0 and "soja" in r["culturas"]
 
 
-def test_mapa_so_com_ruas_sem_chave_e_com_satelite_primeiro_quando_ha_chave_do_maptiler(monkeypatch):
+def test_mapa_tem_satelite_sentinel_relevo_ruas_rotulos_e_sombreado_e_maptiler_entra_primeiro_com_chave(monkeypatch):
     monkeypatch.delenv("MAPTILER_KEY", raising=False)
-    m = novo_cliente().get("/api/config").json()["mapa"]
-    assert [x["id"] for x in m["layers"]] == ["ruas"] and "openstreetmap" in m["url"]
+    c = novo_cliente()
+    m = c.get("/api/config").json()["mapa"]
+    ids = [(x["id"], x["tipo"]) for x in m["layers"]]
+    assert ids == [("satelite", "base"), ("sentinel", "base"), ("relevo", "base"), ("ruas", "base"), ("nomes", "overlay"), ("sombreado", "dem")]
+    assert "arcgisonline" in m["url"] and "Esri" in m["attribution"]  # o satélite abre primeiro, sem chave
+    assert all(x["attribution"] and "{z}" in x["url"] and x["max_zoom"] for x in m["layers"])  # toda camada com atribuição
+    csp = c.get("/app/mapa.html").headers["content-security-policy"]
+    for host in ("server.arcgisonline.com", "tiles.maps.eox.at", "tile.opentopomap.org", "tile.openstreetmap.org", "s3.amazonaws.com"):
+        assert f"https://{host}" in csp, host  # o navegador pode buscar todas as camadas (e só elas)
     monkeypatch.setenv("MAPTILER_KEY", "chave-de-teste")
     c = novo_cliente()
     m = c.get("/api/config").json()["mapa"]
-    assert [x["id"] for x in m["layers"]] == ["satelite", "ruas"] and "key=chave-de-teste" in m["url"] and "{z}" in m["url"]
-    assert "MapTiler" in m["attribution"]
-    csp = c.get("/app/mapa.html").headers["content-security-policy"]
-    assert "https://api.maptiler.com" in csp and "https://tile.openstreetmap.org" in csp  # o navegador pode buscar as duas camadas
+    assert m["layers"][0]["id"] == "satelite_maptiler" and "key=chave-de-teste" in m["url"] and "MapTiler" in m["attribution"]
+    assert "https://api.maptiler.com" in c.get("/app/mapa.html").headers["content-security-policy"]
 
 
 def test_sem_os_dois_consentimentos_nada_e_enviado():
     c = novo_cliente()
     assert pedir_codigo(c, dados=False).status_code == 422
     assert pedir_codigo(c, msgs=False).status_code == 422
-    assert OUTBOX == [] and db.get_producer_by_phone(TEL) is None
+    assert OUTBOX == [] and db.get_producer_by_phone(TEL_N) is None
 
 
 def test_fluxo_completo_cria_conta_grava_consentimentos_e_abre_sessao():
     c = novo_cliente()
     r = pedir_codigo(c)
     assert r.status_code == 200 and r.json()["enviado"] and OUTBOX[-1]["to"] == TEL_N
-    assert db.get_producer_by_phone(TEL) is None  # nada de conta antes de provar o número
+    assert db.get_producer_by_phone(TEL_N) is None  # nada de conta antes de provar o número
     r = c.post("/api/signup/verify", json={"phone": TEL, "code": ultimo_codigo()})
     assert r.status_code == 200 and r.json()["estado"] == "AGUARDA_TALHAO"
-    p = db.get_producer_by_phone(TEL)
+    p = db.get_producer_by_phone(TEL_N)
     assert p.consent and p.source == "site" and p.name == "Maria" and p.state == "AGUARDA_TALHAO"
-    cons = db.list_consents(TEL)
+    cons = db.list_consents(TEL_N)
     assert {x["purpose"] for x in cons} == {"dados_localizacao", "mensagens"} and all(x["origin"] == "site" and x["text_version"] == "v0" for x in cons)
     assert c.get("/api/me").json()["state"] == "AGUARDA_TALHAO"
 
@@ -102,7 +107,7 @@ def test_codigo_nao_fica_em_texto_nem_no_banco_nem_no_registro_de_mensagens():
     with db.connect() as con:
         v = con.execute("SELECT code_hash FROM verifications").fetchone()["code_hash"]
         logs = " ".join(r["content"] for r in con.execute("SELECT content FROM messages").fetchall())
-    assert codigo not in v and len(v) == 64 and v == auth.hash_code(TEL, codigo)
+    assert codigo not in v and len(v) == 64 and v == auth.hash_code(TEL_N, codigo)
     assert codigo not in logs and "omitido" in logs
 
 
@@ -172,8 +177,8 @@ def test_limite_por_ip(monkeypatch):
 def test_telefone_invalido_e_numero_de_sucessor():
     c = novo_cliente()
     assert pedir_codigo(c, tel="123").status_code == 422
-    dono = db.create_producer(Producer(phone="+65999990100", consent=True, state="ATIVO"))
-    db.add_contact(dono.id, "+65999990200")  # o mesmo número que o site normaliza a partir de "65 99999-0200"
+    dono = db.create_producer(Producer(phone="+5565999990100", consent=True, state="ATIVO"))
+    db.add_contact(dono.id, "+5565999990200")  # o mesmo número que o site normaliza a partir de "65 99999-0200"
     OUTBOX.clear()
     r = pedir_codigo(c, tel="65 99999-0200")
     assert r.status_code == 200 and r.json()["enviado"] and OUTBOX == []  # resposta igual à de sucesso, nada enviado: não revela quem usa o BALK
@@ -298,9 +303,9 @@ def test_concluir_ativa_fixa_o_ponto_no_maior_talhao_e_manda_um_relatorio_por_ta
     OUTBOX.clear()
     r = c.post("/api/finish", json={})
     assert r.status_code == 200 and r.json()["talhoes"] == 2
-    p = db.get_producer_by_phone(TEL)
+    p = db.get_producer_by_phone(TEL_N)
     assert p.state == "ATIVO" and abs(p.lon - (LON + 0.05 + 0.002)) < 0.01  # centro do MAIOR talhão
-    textos = [m["text"] for m in OUTBOX if "viabilidade" in m["text"]]
+    textos = [m["text"] for m in OUTBOX if "/100" in m["text"]]
     assert len(textos) == 2 and any("Grande" in t for t in textos) and any("Pequeno" in t for t in textos)
     assert all("/r/" in t for t in textos)  # cada um com o link do seu relatório
     assert len({re.search(r"/r/(\S+)", t).group(1) for t in textos}) == 2
@@ -466,9 +471,9 @@ def test_convite_de_segundo_contato_so_vale_depois_do_sim():
     c = entrar()
     OUTBOX.clear()
     assert c.post("/api/contacts", json={"phone": "65 99999-0555"}).status_code == 200
-    assert OUTBOX and OUTBOX[-1]["to"] == "+65999990555" and "SIM" in OUTBOX[-1]["text"]
+    assert OUTBOX and OUTBOX[-1]["to"] == "+5565999990555" and "SIM" in OUTBOX[-1]["text"]
     assert c.post("/api/contacts", json={"phone": "12"}).status_code == 422
-    assert db.list_contacts(db.get_producer_by_phone(TEL).id, only_active=True) == []
+    assert db.list_contacts(db.get_producer_by_phone(TEL_N).id, only_active=True) == []
     assert c.delete("/api/contacts/65 99999-0555".replace(" ", "%20")).status_code == 200
 
 
@@ -479,15 +484,15 @@ def test_exportar_traz_tudo_e_apagar_exige_confirmacao_e_remove_tudo():
     assert dados["produtor"]["phone"] == TEL_N and len(dados["talhoes"]) == 1 and len(dados["consentimentos"]) == 2
     assert c.request("DELETE", "/api/me", json={"confirmar": False}).status_code == 422
     assert c.request("DELETE", "/api/me", json={"confirmar": True}).status_code == 200
-    assert db.get_producer_by_phone(TEL) is None and db.list_consents(TEL) == []
+    assert db.get_producer_by_phone(TEL_N) is None and db.list_consents(TEL_N) == []
     assert c.get("/api/me").status_code == 401  # a sessão também foi apagada
 
 
 def test_parar_de_receber_revoga_consentimento_e_sessoes():
     c = entrar()
     assert c.post("/api/optout").status_code == 200
-    p = db.get_producer_by_phone(TEL)
-    assert p.state == "SAIU" and not p.consent and not db.has_consent(TEL, "mensagens")
+    p = db.get_producer_by_phone(TEL_N)
+    assert p.state == "SAIU" and not p.consent and not db.has_consent(TEL_N, "mensagens")
     assert c.get("/api/me").status_code == 401
 
 
@@ -495,8 +500,8 @@ def test_voltar_depois_de_sair_reabre_a_conta_com_novo_aceite():
     c = entrar()
     c.post("/api/optout")
     c2 = entrar()
-    p = db.get_producer_by_phone(TEL)
-    assert p.consent and p.state == "AGUARDA_TALHAO" and db.has_consent(TEL, "mensagens") and c2.get("/api/me").status_code == 200
+    p = db.get_producer_by_phone(TEL_N)
+    assert p.consent and p.state == "AGUARDA_TALHAO" and db.has_consent(TEL_N, "mensagens") and c2.get("/api/me").status_code == 200
 
 
 # ---------------------------------------------------------------- endurecimento (achados da auditoria de segurança)
@@ -616,3 +621,11 @@ def test_codigo_usa_template_proprio_do_whatsapp(monkeypatch):
     visto.clear()
     WhatsAppChannel().send("+5565999990001", "alerta", proactive=True)
     assert visto["template"]["name"] == "geral"
+
+
+def test_numero_digitado_no_site_ganha_o_55_e_casa_com_o_do_whatsapp():
+    assert auth.site_phone("65 99999-0001") == "+5565999990001" == auth.site_phone("(65) 9999-90001")
+    assert auth.site_phone("55 65 99999-0001") == "+5565999990001"  # já com o código do país
+    assert auth.site_phone("6533330001") == "+556533330001"  # fixo com DDD (10 dígitos)
+    c = entrar()
+    assert handle_message("5565999990001", "oi").producer_id == db.get_producer_by_phone(TEL_N).id  # o WhatsApp manda sem "+"

@@ -82,7 +82,9 @@ produtor ─> get_weather (72 h) ───────────────�
          ─> render(...) ──> texto final por canal (WhatsApp completo, SMS ≤160)
 ```
 
-Quem envia a mensagem (n8n ou `run_daily`) depois registra o alerta em `/alerts/log`, e é isso que alimenta o silêncio.
+O ciclo diário (`POST /jobs/daily`, que o fluxo WF2 do n8n só agenda) envia e registra o alerta por talhão, e é isso que alimenta o silêncio.
+Quem enviar por fora dele registra em `/alerts/log` informando o `plot_id`. A resposta 1 vira registro e a 2 vira pedido para a equipe (`GET /escalations`),
+com o aviso a que se refere e o link do relatório; os números do dia a dia saem em `GET /metricas`.
 
 ## 4. Contratos (`app/models.py`)
 
@@ -371,7 +373,7 @@ GET /r/<token> ──> report.ensure_images (gera os PNGs se faltarem) ──> r
 |---|---|
 | ver o que falta | `python -m app.cli check` |
 | subir em produção | `BALK_ENV=production` + `BALK_API_KEY` + `PUBLIC_BASE_URL` (https). O servidor **recusa subir** com pendências e passa a esconder simulador e `/docs` |
-| chamar rotas internas | header `X-API-Key: <chave>` (ou `Authorization: Bearer`) em `/conversation`, `/ingest/producers`, `/analyze/{id}`, `/alerts/log`, `/logistics/plan`, `/cooperative/{id}/forecast`, `/producers`, `/jobs/daily`, `/jobs/purge`, `DELETE /producers/{id}`, `/ready` |
+| chamar rotas internas | header `X-API-Key: <chave>` (ou `Authorization: Bearer`) em `/conversation`, `/ingest/producers`, `/analyze/{id}`, `/alerts/log`, `/logistics/plan`, `/cooperative/{id}/forecast`, `/producers`, `/jobs/daily`, `/jobs/purge`, `/escalations`, `/metricas`, `DELETE /producers/{id}`, `/ready` |
 | receber WhatsApp | webhook `https://dominio/webhooks/whatsapp` (verificação GET + POST assinado com `X-Hub-Signature-256`; idempotente pelo id da mensagem) |
 | receber SMS | webhook `https://dominio/sms/inbound` (assinatura `X-Twilio-Signature`; resposta em TwiML) |
 | enviar alertas do dia | `POST /jobs/daily` às 06:05 (cron ou n8n); no WhatsApp o envio proativo usa o **template** de `WHATSAPP_TEMPLATE_NAME` |

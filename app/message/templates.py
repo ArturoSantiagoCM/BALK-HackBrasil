@@ -167,9 +167,11 @@ def to_sms(text: str, limit: int = 160) -> str:
     return t if len(t) <= limit else t[:limit - 3] + "..."
 
 
-def fmt(v) -> str:
+def fmt(v, lang: Optional[str] = None) -> str:
+    """Número para o produtor: inteiro sem casas; senão 1 casa, com vírgula em português e espanhol (23,5 °C)."""
     if isinstance(v, float):
-        return str(int(v)) if v.is_integer() else f"{v:.1f}"
+        s = str(int(v)) if v.is_integer() else f"{v:.1f}"
+        return s.replace(".", ",") if lang in ("pt", "es") else s
     return str(v)
 
 
@@ -180,10 +182,10 @@ def day_label(offset: Optional[int], weekday: Optional[int], lang: str) -> str:
 
 
 def _fields(ev: dict, lang: str) -> dict:
-    f = {k: fmt(v) for k, v in ev.items()}
+    f = {k: fmt(v, lang) for k, v in ev.items()}
     f["dia"] = day_label(ev.get("dia_offset"), ev.get("weekday"), lang)
-    f["ini"] = fmt(ev.get("inicio_h", ""))
-    f["fim"] = fmt(ev.get("fim_h", ""))
+    f["ini"] = fmt(ev.get("inicio_h", ""), lang)
+    f["fim"] = fmt(ev.get("fim_h", ""), lang)
     if ev.get("direcao"):
         f["dir_txt"] = DIRS[lang].get(ev["direcao"], ev["direcao"])
     return f
@@ -230,10 +232,16 @@ def render_alert(alert: Alert, channel: str, lang: str = "pt", plot: Optional[st
         if plot:
             body = body.replace("BALK:", f"BALK {plot[:12].strip()}:", 1)
         return to_sms(body, 160 - len(SMS_SUFFIX)) + SMS_SUFFIX
-    lw, lc = LBL[lang]
-    head = f"{PLOT_LABEL[lang]} {plot}: " if plot else ""
-    return (f"{head}{l1.format(**f)}\n{l2.format(**f)}\n\n{lw}: {why.format(**f)}.\n"
-            f"{lc}: {CONF[lang][alert.confidence]}.")
+    # WhatsApp: 3 linhas e ao ponto (ação, o dado que a justifica, confiança + como responder). O "por quê" completo,
+    # com cada critério da regra, fica no relatório do link.
+    lc = LBL[lang][1]
+    head = f"*{PLOT_LABEL[lang]} {plot}:* " if plot else ""
+    return f"{head}{l1.format(**f)}\n{l2.format(**f)}\n{lc}: {CONF[lang][alert.confidence]}. {REPLY[lang]}"
+
+
+REPLY = {"pt": "Responda 1 se vai fazer, 2 para falar com um agrônomo.",
+         "es": "Responda 1 si lo hará, 2 para hablar con un agrónomo.",
+         "en": "Reply 1 if you will do it, 2 to talk to an agronomist."}
 
 
 def _orientation(v: Viability, lang: str) -> str:
@@ -262,38 +270,78 @@ def render_report(rep: Report, channel: str, lang: str = "pt") -> str:
             else SHORT[lang]["_ok"]
         tag = f"BALK {rep.plot_name[:12].strip()}" if rep.plot_name else "BALK"
         return to_sms(f"{tag}: {crops[top.crop]} nota {top.score}/100. Limite: {lim}. {short}", 160)
-    head = {"pt": "*BALK: viabilidade da sua área*", "es": "*BALK: viabilidad de su área*",
-            "en": "*BALK: your field's viability*"}[lang]
+    # WhatsApp: curto e ao ponto. Nota da cultura, a melhor alternativa (se for bem melhor), UM ponto de atenção,
+    # a confiança e o aviso. Os números, mapas, zonas, relevo, água e a conta de cada nota ficam no relatório do link.
+    head = {"pt": "*BALK · sua lavoura*", "es": "*BALK · su cultivo*", "en": "*BALK · your field*"}[lang]
     if rep.plot_name:
-        head = {"pt": f"*BALK: viabilidade do talhão {rep.plot_name}*", "es": f"*BALK: viabilidad del lote {rep.plot_name}*",
-                "en": f"*BALK: viability of plot {rep.plot_name}*"}[lang]
-    area = {"pt": "Área analisada: {a} ha (cena de satélite de {d}).", "es": "Área analizada: {a} ha (escena de {d}).",
-            "en": "Area analysed: {a} ha (satellite scene of {d})."}[lang]
-    lines = [head, area.format(a=fmt(rep.stats.area_ha), d=rep.stats.scene_date or "-")]
-    if rep.crop_pref:
-        mine = next((v for v in rep.ranking if v.crop == rep.crop_pref), None)
-        if mine:
-            lines.append({"pt": "Sua cultura: {c}, nota {s}/100.", "es": "Su cultivo: {c}, nota {s}/100.",
-                          "en": "Your crop: {c}, score {s}/100."}[lang].format(c=crops[mine.crop], s=mine.score))
-    lines.append({"pt": "Mais indicadas:", "es": "Más indicados:", "en": "Best suited:"}[lang])
+        head = f"*BALK · {PLOT_LABEL[lang]} {rep.plot_name}*"
+    lines = [head]
     ordered = sorted(rep.ranking, key=lambda v: -v.score)
-    lines += [f"{i}. {crops[v.crop]}: {v.score}/100" for i, v in enumerate(ordered, 1)]
-    if top.factors.get(top.limiting_factor, 0) < 0.8:
-        label = {"pt": "Ponto de atenção", "es": "Punto de atención", "en": "Main concern"}[lang]
-        lines.append(f"{label} ({lim}): {_orientation(top, lang)}")
+    best = ordered[0]
+    mine = next((v for v in rep.ranking if v.crop == rep.crop_pref), None) if rep.crop_pref else None
+    nota = {"pt": "{c}: nota {s}/100 ({q}).", "es": "{c}: nota {s}/100 ({q}).", "en": "{c}: score {s}/100 ({q})."}[lang]
+    if mine:
+        lines.append(nota.format(c=crops[mine.crop].capitalize(), s=mine.score, q=QUALITY[lang][_quality(mine.score)]))
+        if best.crop != mine.crop and best.score - mine.score >= 10:
+            lines.append({"pt": "Melhor opção para esta área: {c} ({s}/100).", "es": "Mejor opción para esta área: {c} ({s}/100).",
+                          "en": "Best option for this area: {c} ({s}/100)."}[lang].format(c=crops[best.crop], s=best.score))
     else:
-        lines.append(_orientation(top, lang))  # sem fator crítico: não aponta um "ponto de atenção" falso
-    lines += terrain_lines(rep, lang)
-    lines.append(f"{LBL[lang][1]}: {CONF[lang][top.confidence]}.")
-    lines.append(DISCLAIMER[lang])
+        lines.append({"pt": "Melhor cultura para esta área: {c}, nota {s}/100.", "es": "Mejor cultivo para esta área: {c}, nota {s}/100.",
+                      "en": "Best crop for this area: {c}, score {s}/100."}[lang].format(c=crops[best.crop], s=best.score))
+    focus = mine or best
+    r = rep.relations or {}
+    old = bool(r.get("cena_antiga") and r.get("idade_cena_dias") is not None)
+    if focus.factors.get(focus.limiting_factor, 0) < 0.8:
+        o = _orientation(focus, lang)
+        lines.append({"pt": "Atenção", "es": "Atención", "en": "Watch out"}[lang] + f": {o[:1].lower() + o[1:]}")
+        if old:  # imagem velha muda a confiança: o produtor precisa saber mesmo quando já há outro ponto de atenção
+            lines.append({"pt": f"A imagem de satélite é de {r['idade_cena_dias']} dias atrás.", "es": f"La imagen de satélite es de hace {r['idade_cena_dias']} días.",
+                          "en": f"The satellite image is {r['idade_cena_dias']} days old."}[lang])
+    else:
+        extra = _main_extra(rep, lang)
+        lines.append(extra or _orientation(focus, lang))  # sem fator crítico: não inventa um "ponto de atenção"
+    lines.append(f"{LBL[lang][1]}: {CONF[lang][focus.confidence]}. {DISCLAIMER_SHORT[lang]}")
     if rep.map_url:
         lines.append({"pt": "Mapa", "es": "Mapa", "en": "Map"}[lang] + f": {rep.map_url}")
     return "\n".join(lines)
 
 
+QUALITY = {"pt": {"boa": "boa", "media": "média", "baixa": "baixa"}, "es": {"boa": "buena", "media": "media", "baixa": "baja"},
+           "en": {"boa": "good", "media": "fair", "baixa": "low"}}
+DISCLAIMER_SHORT = {"pt": "Não substitui um engenheiro agrônomo.", "es": "No sustituye a un ingeniero agrónomo.",
+                    "en": "Not a substitute for an agronomist."}
+
+
+def _quality(score: int) -> str:
+    return "boa" if score >= 70 else "media" if score >= 50 else "baixa"
+
+
+def _main_extra(rep: "Report", lang: str) -> Optional[str]:
+    """Sem fator crítico na nota: o ponto de atenção mais importante que o motor geo achou (só um), ou nada."""
+    s, r = rep.stats, rep.relations or {}
+    if s is None:
+        return None
+    if r.get("cena_antiga") and r.get("idade_cena_dias") is not None:
+        return {"pt": f"Atenção: a imagem de satélite é de {r['idade_cena_dias']} dias atrás.", "es": f"Atención: la imagen es de hace {r['idade_cena_dias']} días.",
+                "en": f"Note: the satellite image is {r['idade_cena_dias']} days old."}[lang]
+    if r.get("atencao_agua"):
+        return {"pt": "Atenção: a lavoura está com pouca água e a previsão não repõe. Fique de olho.",
+                "es": "Atención: el cultivo tiene poca agua y el pronóstico no la repone.",
+                "en": "Watch out: the crop is low on water and the forecast will not make up for it."}[lang]
+    if s.erosion_class == "alto":
+        return {"pt": "Atenção: risco alto de erosão no terreno.", "es": "Atención: riesgo alto de erosión.", "en": "Watch out: high erosion risk."}[lang]
+    if s.weak_area_pct is not None and s.weak_area_pct >= 25 and s.weak_area_dir:
+        where = {"pt": "no centro", "es": "en el centro", "en": "in the middle"}[lang] if s.weak_area_dir == "C" else \
+            {"pt": "no lado {d}", "es": "lado {d}", "en": "{d} side"}[lang].format(d=DIRS[lang].get(s.weak_area_dir, ""))
+        return {"pt": f"Atenção: {s.weak_area_pct:.0f}% da área está mais fraca, {where}.",
+                "es": f"Atención: {s.weak_area_pct:.0f}% del área está más débil, {where}.",
+                "en": f"Watch out: {s.weak_area_pct:.0f}% of the area is weaker, {where}."}[lang]
+    return None
+
+
 def render_logistics(plan: dict, channel: str, lang: str = "pt") -> str:
     l1, l2, sms = LOGISTICS[lang]
-    f = {k: fmt(v) for k, v in plan.items() if not isinstance(v, (dict, list))}
+    f = {k: fmt(v, lang) for k, v in plan.items() if not isinstance(v, (dict, list))}
     f["dia"] = day_label(plan.get("dia_offset"), plan.get("weekday"), lang)
     f["hora"] = fmt(plan.get("hora"))
     text = sms.format(**f) if channel == "sms" else f"{l1.format(**f)}\n{l2.format(**f)}"

@@ -57,7 +57,8 @@ def render_map(work_dir: Path, lat: float, lon: float, ranking: list[Viability],
     else:
         ax[3].axis("off")
     draw(ax[4], P.tpi, "Posição no relevo (TPI, m): azul = baixada", "RdBu", -6, 6)
-    names = [v.crop for v in ranking][::-1]
+    from app.message.templates import CROPS
+    names = [CROPS['pt'].get(v.crop, v.crop) for v in ranking][::-1]  # com acento: feijão, café, hortaliça
     scores = [v.score for v in ranking][::-1]
     ax[5].barh(names, scores, color="#2e7d32")
     ax[5].set_xlim(0, 100)

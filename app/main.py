@@ -24,7 +24,7 @@ from pydantic import BaseModel
 load_dotenv()
 
 from app import config, db, db_site, report, security, site_api, webhooks  # noqa: E402
-from app.channels import OUTBOX, get_channel  # noqa: E402
+from app.channels import OUTBOX  # noqa: E402
 from app.data import simulated  # noqa: E402
 from app.ingest.conversation import handle_message  # noqa: E402
 from app.ingest.csv_import import ingest_rows, parse_csv_text  # noqa: E402
@@ -70,6 +70,8 @@ async def observe(request: Request, call_next):
         response.headers.setdefault("X-Frame-Options", "DENY")
     if path.startswith(("/api", "/m/")):
         response.headers.setdefault("Cache-Control", "no-store")
+    elif path == "/" or (path.startswith("/app/") and not path.startswith("/app/vendor/")):
+        response.headers.setdefault("Cache-Control", "no-cache")  # a página e os scripts do BALK sempre revalidam (as bibliotecas de vendor/ podem ficar em cache)
     log.info(json.dumps({"evt": "req", "rid": rid, "m": request.method, "path": _safe_path(request.url.path),
                          "st": response.status_code, "ms": round((time.perf_counter() - t0) * 1000)}))
     return response
@@ -92,6 +94,7 @@ class AlertLogIn(BaseModel):
     producer_id: int
     type: str
     sent_at: Optional[str] = None
+    plot_id: int = 0  # o silêncio de 72 h é por talhão: quem envia fora do /jobs/daily informa o talhão do alerta
 
 
 class LogisticsIn(BaseModel):
@@ -113,12 +116,12 @@ def _conversation(body: ConversationIn) -> dict:
     if reply.became_active:  # primeira análise ao virar ATIVO (M3 + M4), em segundos
         try:
             res = analyze_producer(reply.producer_id, full=True)
-            messages += [m for m in res["messages"] if m["kind"] == "report"]
+            messages += [m for m in res["messages"] if m["kind"] == "report" and not m.get("so_clima")]
         except Exception:  # noqa: BLE001  (clima fora do ar: o cadastro vale e o relatório vem no próximo ciclo)
             log.exception("primeira análise falhou")
             messages.append({"kind": "reply", "text": "Tive um problema para buscar os dados agora. Seu cadastro está feito e eu aviso assim que conseguir."})
     for phone, text, channel in reply.notify:  # convite ao sucessor (outra pessoa): sai pelo canal e aparece no simulador
-        deliver(reply.producer_id, phone, channel, text, kind="convite", proactive=True)
+        deliver(reply.producer_id, phone, channel, text, kind="convite", proactive=True, purpose="invite")
         messages.append({"kind": "notify", "to": phone, "text": text})
     return {"reply": reply.text, "became_active": reply.became_active, "producer_id": reply.producer_id,
             "messages": messages}
@@ -144,7 +147,8 @@ def ready():
         db_ok = False
     return {"ok": db_ok, "env": config.env(), "data_mode": config.data_mode(), "engine": config.engine_name(),
             "pendencias": config.production_problems(),
-            "canais": {"whatsapp": bool(os.getenv("WHATSAPP_TOKEN")), "sms": bool(os.getenv("TWILIO_ACCOUNT_SID")),
+            "canais": {"whatsapp": "openwa" if os.getenv("OPENWA_URL") else bool(os.getenv("WHATSAPP_TOKEN")),
+                       "sms": "celular" if os.getenv("SMSGATE_URL") else bool(os.getenv("TWILIO_ACCOUNT_SID")),
                        "ia_redacao": bool(os.getenv("ANTHROPIC_API_KEY"))}}
 
 
@@ -181,6 +185,48 @@ async def whatsapp_inbound(request: Request, tasks: BackgroundTasks):
     return {"recebidas": len(msgs), "status_atualizados": len(statuses)}
 
 
+@public.post("/webhooks/openwa", dependencies=[security.limiter_dependency(webhook_limiter)])
+async def openwa_inbound(request: Request, tasks: BackgroundTasks):
+    """Mensagens do WhatsApp pelo gateway OpenWA (demonstração). Valida X-OpenWA-Signature (HMAC-SHA256 do corpo bruto
+    com OPENWA_WEBHOOK_SECRET), responde 200 logo e processa depois, como o webhook da Meta."""
+    raw = await request.body()
+    secret = os.getenv("OPENWA_WEBHOOK_SECRET", "")
+    if secret:
+        if not security.verify_meta_signature(raw, request.headers.get("x-openwa-signature"), secret):
+            raise HTTPException(401, "assinatura inválida")
+    elif config.is_production():
+        raise HTTPException(503, "OPENWA_WEBHOOK_SECRET não configurado")
+    try:
+        msgs, statuses = webhooks.parse_openwa(json.loads(raw or b"{}"))
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(400, "corpo inválido")
+    for mid, state, err in statuses:
+        db.update_message_state_by_provider(mid, state, err)
+    for m in msgs:
+        tasks.add_task(webhooks.process_whatsapp, m)
+    return {"recebidas": len(msgs), "status_atualizados": len(statuses)}
+
+
+@public.post("/webhooks/smsgate", dependencies=[security.limiter_dependency(webhook_limiter)])
+async def smsgate_inbound(request: Request, tasks: BackgroundTasks):
+    """SMS recebido pelo celular gateway (SMS Gateway for Android). Valida X-Signature + X-Timestamp com
+    SMSGATE_WEBHOOK_KEY; a resposta sai depois, como SMS, pelo mesmo celular."""
+    raw = await request.body()
+    key = os.getenv("SMSGATE_WEBHOOK_KEY", "")
+    if key:
+        if not security.verify_smsgate_signature(raw, request.headers.get("x-signature"), request.headers.get("x-timestamp"), key):
+            raise HTTPException(401, "assinatura inválida")
+    elif config.is_production():
+        raise HTTPException(503, "SMSGATE_WEBHOOK_KEY não configurada")
+    try:
+        msgs = webhooks.parse_smsgate(json.loads(raw or b"{}"))
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(400, "corpo inválido")
+    for m in msgs:
+        tasks.add_task(webhooks.process_sms, m)
+    return {"recebidas": len(msgs)}
+
+
 @public.post("/sms/inbound", dependencies=[security.limiter_dependency(webhook_limiter)])
 async def sms_inbound(request: Request):
     """SMS recebido. Twilio (formulário, com X-Twilio-Signature; responde TwiML) ou JSON {from, body} (n8n, só sem Twilio).
@@ -203,9 +249,9 @@ async def sms_inbound(request: Request):
     out = {"reply": r.text, "became_active": r.became_active, "producer_id": r.producer_id}
     texts = [r.text]
     for phone_to, text_to, channel_to in r.notify:  # convite ao sucessor
-        deliver(r.producer_id, phone_to, channel_to, text_to, kind="convite", proactive=True)
+        deliver(r.producer_id, phone_to, channel_to, text_to, kind="convite", proactive=True, purpose="invite")
     if r.became_active:
-        out["messages"] = [m for m in analyze_producer(r.producer_id, full=True)["messages"] if m["kind"] == "report"]
+        out["messages"] = [m for m in analyze_producer(r.producer_id, full=True)["messages"] if m["kind"] == "report" and not m.get("so_clima")]
         texts += [m["text"] for m in out["messages"]]
     if not is_json:
         return Response(webhooks.twiml(texts), media_type="application/xml")
@@ -261,6 +307,33 @@ def report_image(token: str, name: str, request: Request):
     return FileResponse(f, media_type="image/png", headers={"Cache-Control": "private, max-age=3600", "X-Robots-Tag": "noindex"})
 
 
+PRIVADO = {"_producer_id", "_token", "_expires_at", "poligono", "work_key"}  # nada que localize o talhão exato nem ids internos
+
+
+@public.get("/r/{token}/dados.json")
+def report_data(token: str, request: Request):
+    """Os dados do relatório em JSON, para planilha, SIG ou outro algoritmo (o mesmo pacote que a página mostra)."""
+    data = _load_report(token, request)
+    out = {k: v for k, v in data.items() if k not in PRIVADO}
+    return JSONResponse(out, headers={**_SEC, "Content-Disposition": 'attachment; filename="balk-dados.json"'})
+
+
+@public.get("/r/{token}/clima.csv")
+def report_weather_csv(token: str, request: Request):
+    """O clima hora a hora do relatório em CSV (separador ;), com Delta T e as horas que servem para pulverizar."""
+    import csv
+    import io
+    data = _load_report(token, request)
+    rows = data.get("clima_horas") or []
+    buf = io.StringIO()
+    cols = ["hora", "temp_c", "ur_pct", "vento_kmh", "chuva_prob_pct", "chuva_mm", "et0_mm", "delta_t", "serve_pulverizar", "geada"]
+    w = csv.DictWriter(buf, fieldnames=cols, delimiter=";", extrasaction="ignore")
+    w.writeheader()
+    w.writerows(rows)
+    return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={**_SEC, "Content-Disposition": 'attachment; filename="balk-clima.csv"'})
+
+
 @public.get("/r/{token}/baixar")
 def report_download(token: str, request: Request):
     """O mesmo relatório em UM arquivo .html (imagens dentro), para guardar ou mandar a um agrônomo."""
@@ -299,13 +372,8 @@ def _ingest(rows: list[dict], analisar: bool = True) -> dict:
     out["relatorios"] = []
     out["convites_enviados"] = 0
     for inv in out["optin_pendentes"]:  # cadastrados por cooperativa: convite de aceite (nada mais é enviado antes do SIM)
-        try:
-            ch = get_channel(inv["channel"])
-            ch.send(inv["phone"], inv["text"], None, proactive=True)
-            db.log_message(inv["producer_id"], inv["phone"], "out", inv["channel"], "optin", inv["text"], state="sent")
-            out["convites_enviados"] += 1
-        except Exception:  # noqa: BLE001
-            log.exception("falha ao enviar convite")
+        r = deliver(inv["producer_id"], inv["phone"], inv["channel"], inv["text"], kind="optin", proactive=True, purpose="invite")
+        out["convites_enviados"] += int(r["ok"])  # entrega com registro, repetição e o template de convite; falha fica no registro
     if analisar:
         for pid in out["ids_ativos"]:
             res = analyze_producer(pid, full=True)
@@ -379,9 +447,21 @@ def analyze_route(pid: int, full: bool = False, now: Optional[str] = None):
         raise HTTPException(404, "produtor não encontrado")
 
 
+@internal.get("/escalations")
+def escalations():
+    """Pedidos de agrônomo (resposta 2), com o aviso a que se referem e o link do relatório. A equipe atende daqui."""
+    return db.list_escalations()
+
+
+@internal.get("/metricas")
+def metricas(dias: int = 7):
+    """Alcance, avisos, retorno dos produtores (1 e 2) e falhas de entrega nos últimos dias."""
+    return db.metrics(max(1, min(dias, 90)))
+
+
 @internal.post("/alerts/log")
 def alerts_log(body: AlertLogIn):
-    db.log_alert(body.producer_id, body.type, body.sent_at)
+    db.log_alert(body.producer_id, body.type, body.sent_at, body.plot_id)
     return {"ok": True}
 
 
@@ -486,9 +566,25 @@ async def _demo_lifespan(_app: FastAPI):
 
 
 @demo.get("/outbox")
-def outbox():
-    """O que o canal de console 'enviou' (só fora de produção): a demo lê o código de verificação e os relatórios daqui."""
-    return OUTBOX[-50:]
+def outbox(para: Optional[str] = None, depois: int = 0, limite: int = 50):
+    """O que o provedor de demonstração 'entregou' (só fora de produção). Os celulares do simulador leem daqui, filtrando pelo
+    número (`para`) e pelo que já mostraram (`depois` = último `seq` visto): código do site, relatórios, alertas e convites."""
+    alvo = db.norm_phone(para) if para else None
+    itens = [m for m in OUTBOX if m.get("seq", 0) > depois and (alvo is None or m["to"] == alvo)]
+    return itens[-max(1, min(limite, 500)):]
+
+
+@demo.get("/demo/estado")
+def demo_estado():
+    """Painel do simulador: produtores (sem expor nada fora da demo), talhões e o que foi enviado hoje."""
+    out = []
+    for p in db.list_all():
+        plots = db.list_plots(p.id)
+        out.append({"id": p.id, "phone": p.phone, "name": p.name, "channel": p.channel, "state": p.state, "crop": p.crop,
+                    "source": p.source, "precision": p.location_precision, "talhoes": [{"nome": x["name"], "area_ha": x["area_ha"], "crop": x["crop"]} for x in plots],
+                    "contatos": [c["phone"] for c in db.list_contacts(p.id) if c["state"] == "ATIVO"]})
+    return {"produtores": out, "data_mode": config.data_mode(), "engine": config.engine_name(),
+            "pedidos_agronomo": db.list_escalations(20), "metricas": db.metrics(7)}
 
 
 @demo.get("/maps/{pid}.png")

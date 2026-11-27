@@ -20,7 +20,7 @@
 <div class="mapa-corpo">
   <aside class="painel" aria-label="Seus talhões">
     <h2>Seus talhões</h2>
-    <p class="suave">Procure o lugar, toque em <strong>Desenhar talhão</strong> e vá tocando nos cantos da lavoura. Para fechar, toque no primeiro ponto de novo (ou duplo toque no último).</p>
+    <p class="suave">1. Ache a sua lavoura (busca ou GPS). 2. Escolha <strong>como desenhar</strong> na barra de cima do mapa. 3. Ajuste o desenho se precisar e salve.</p>
 
     <div class="busca">
       <input id="busca" type="text" placeholder="Município, endereço ou lat, lon" aria-label="Buscar lugar">
@@ -28,13 +28,7 @@
     </div>
     <div class="resultados" id="resultados"></div>
     <div class="barra">
-      <button class="btn sec peq" id="btnGps" type="button">Usar minha localização</button>
-      <button class="btn sec peq escondido" id="btnCamada" type="button">Ver: Ruas</button>
-    </div>
-    <p class="suave">O GPS só leva o mapa até você. Os limites são os que você desenha.</p>
-
-    <div class="barra">
-      <button class="btn" id="btnDesenhar" type="button">Desenhar talhão</button>
+      <button class="btn sec peq" id="btnGps" type="button">Ir para onde estou</button>
     </div>
     <p id="erroGeral" class="erro escondido" role="alert"></p>
 
@@ -75,7 +69,47 @@
       <p id="okFim" class="ok escondido"></p>
     </div>
   </aside>
-  <div id="mapa" role="application" aria-label="Mapa para desenhar os talhões"></div>
+
+  <div class="mapa-wrap">
+    <div id="mapa" role="application" aria-label="Mapa para desenhar os talhões"></div>
+
+    <div class="ferr" id="ferramentas" role="toolbar" aria-label="Como desenhar o talhão">
+      <button type="button" class="ferr-btn" data-ferr="contornar"><b>Contornar</b><small>toque nos cantos</small></button>
+      <button type="button" class="ferr-btn" data-ferr="mao"><b>À mão livre</b><small>arraste o dedo</small></button>
+      <button type="button" class="ferr-btn" data-ferr="retangulo"><b>Retângulo</b><small>arraste na diagonal</small></button>
+      <button type="button" class="ferr-btn" data-ferr="circulo"><b>Círculo</b><small>pivô central</small></button>
+      <label class="ferr-btn ferr-arq" tabindex="0"><b>Importar</b><small>KML ou GeoJSON</small>
+        <input id="arquivo" type="file" accept=".kml,.geojson,.json,application/vnd.google-earth.kml+xml,application/geo+json,application/json">
+      </label>
+    </div>
+
+    <div class="camadas">
+      <button type="button" class="btn peq" id="btnCamadas" aria-expanded="false" aria-controls="camadasPainel">Mapa</button>
+      <div id="camadasPainel" class="camadas-painel escondido">
+        <strong>Como ver o terreno</strong>
+        <div id="camadasBases" role="radiogroup" aria-label="Fundo do mapa"></div>
+        <strong>Por cima</strong>
+        <div id="camadasExtras"></div>
+        <p class="suave">A data das imagens muda de lugar para lugar. Se a lavoura não aparece atualizada, troque de fundo.</p>
+      </div>
+    </div>
+
+    <div class="faixa escondido" id="acoesContorno" role="group" aria-label="Contornar o talhão">
+      <button type="button" class="btn sec peq" id="btnPontoGps">Adicionar meu ponto (GPS)</button>
+      <button type="button" class="btn sec peq" id="btnDesfazerPonto">Desfazer ponto</button>
+      <button type="button" class="btn peq" id="btnFechar">Fechar talhão</button>
+      <button type="button" class="btn sec peq" id="btnCancelarDesenho">Cancelar</button>
+    </div>
+    <div class="faixa escondido" id="acoesEdicao" role="group" aria-label="Ajustar o talhão">
+      <button type="button" class="btn sec peq" id="edDesfazer">Desfazer</button>
+      <button type="button" class="btn sec peq" id="edGirarE" aria-label="Girar para a esquerda">Girar ↺</button>
+      <button type="button" class="btn sec peq" id="edGirarD" aria-label="Girar para a direita">Girar ↻</button>
+      <button type="button" class="btn sec peq" id="edMenos">Menor</button>
+      <button type="button" class="btn sec peq" id="edMais">Maior</button>
+      <button type="button" class="btn sec peq" id="edSimplificar">Simplificar</button>
+    </div>
+    <p class="dica" id="dica" role="status"></p>
+  </div>
 </div>
 <script type="module" src="/app/js/mapa.js"></script>
 </body>

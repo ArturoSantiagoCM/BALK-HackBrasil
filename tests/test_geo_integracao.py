@@ -9,7 +9,7 @@ from app.alerts.rules import evaluate_frost, evaluate_stress
 from app.data import simulated
 from app.data.climate import mean_monthly_rain, monthly_from_daily, season_frost_days
 from app.message import render
-from app.message.templates import Report
+from app.message.templates import Report, terrain_lines
 from app.models import Producer, SpatialStats, Viability, Weather
 from app.viability import load_crops, score_crop
 from tests.conftest import NOW, make_hours
@@ -50,10 +50,11 @@ def test_mensagem_de_geada_por_relevo_nos_3_idiomas_e_no_sms():
     w = Weather(hours=make_hours(temp=lambda i: 3.8 if 15 <= i <= 19 else 14.0))
     a = evaluate_frost(w, now=NOW, relief_offset_c=-1.0)
     for lang in ("pt", "es", "en"):
+        sep = "." if lang == "en" else ","  # número com vírgula em português e espanhol
         wa = render(a, "whatsapp", lang)
-        assert "3.8" in wa and "2.8" in wa and "None" not in wa
+        assert f"3{sep}8" in wa and f"2{sep}8" in wa and "None" not in wa
         sms = render(a, "sms", lang)
-        assert len(sms) <= 160 and sms.isascii() and "2.8" in sms
+        assert len(sms) <= 160 and sms.isascii() and f"2{sep}8" in sms
 
 
 # ---- área fraca ----
@@ -119,21 +120,24 @@ def _viab():
                      confidence="media")
 
 
-def test_relatorio_traz_relevo_zonas_agua_e_baixada():
+def test_relevo_zonas_agua_e_baixada_vao_para_o_relatorio_e_nao_para_a_mensagem():
     st = _stats(slope_mean_pct=6.4, aspect_label="S", erosion_class="baixo", moisture_class="baixa",
                 frost_relief_offset_c=-0.8, zones=[{"id": 1, "share_pct": 30.0, "ndvi_mean": 0.55}, {"id": 2, "share_pct": 70.0, "ndvi_mean": 0.75}])
     rep = Report(ranking=[_viab()], stats=st, relations={"saldo_mm": -8.2, "atencao_agua": True})
     for lang, trechos in {"pt": ("declividade média de 6.4%", "voltada para sul", "2 zonas de manejo", "30%", "baixa", "-8.2", "olho na água", "0.8"),
                           "es": ("pendiente media", "hacia sur", "2 zonas de manejo", "30%", "baja", "-8.2", "vigilar", "0.8"),
                           "en": ("average slope 6.4%", "facing south", "2 management zones", "30%", "low", "-8.2", "Keep an eye", "0.8")}.items():
-        txt = render(rep, "whatsapp", lang)
+        linhas = " ".join(terrain_lines(rep, lang))  # o relatório detalhado (seção de conclusões) usa estas linhas
         for t in trechos:
-            assert t in txt, (lang, t)
+            assert t in linhas, (lang, t)
+        assert "zonas de manejo" not in render(rep, "whatsapp", lang) and "management zones" not in render(rep, "whatsapp", lang)
     sms = render(rep, "sms", "pt")
-    assert len(sms) <= 160 and sms.isascii()  # o SMS não ganha linhas novas
+    assert len(sms) <= 160 and sms.isascii()
 
 
-def test_relatorio_sem_dados_do_motor_geo_fica_como_antes():
-    rep = Report(ranking=[_viab()], stats=_stats())
+def test_mensagem_aponta_um_so_ponto_de_atencao_do_terreno_quando_a_nota_nao_tem_fator_critico():
+    ok = Viability(crop="soja", score=90, factors={"chuva_mm": 1.0}, limiting_factor="chuva_mm", orientation="Sem fator crítico.", confidence="alta")
+    rep = Report(ranking=[ok], stats=_stats(erosion_class="alto", moisture_class="baixa"), relations={"saldo_mm": -9.0, "atencao_agua": True}, crop_pref="soja")
     txt = render(rep, "whatsapp", "pt")
-    assert "Relevo" not in txt and "Zonas" not in txt and "Umidade" not in txt and "Baixada" not in txt
+    assert "pouca água" in txt and "erosão" not in txt  # um ponto só, o mais urgente
+    assert len(txt.splitlines()) <= 5
