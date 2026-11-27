@@ -76,7 +76,7 @@
             },
             {
               "name": "text",
-              "value": "={{$json.messages[0].text}}",
+              "value": "={{$json.messages.filter(m => m.kind === 'report').map(m => m.text).join('\\n\\n')}}",
               "type": "string"
             }
           ]

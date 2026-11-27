@@ -28,7 +28,7 @@ def test_todo_alerta_sai_em_whatsapp_e_sms_nos_3_idiomas(lang):
     for a in todos_os_alertas():
         wa = render(a, "whatsapp", lang)
         assert wa.strip() and "{" not in wa and "None" not in wa
-        assert len(wa.splitlines()) >= 3  # 2 linhas no topo + "Por quê"/confiança
+        assert len(wa.splitlines()) == 3  # ação, o dado que justifica, confiança + como responder (curto e ao ponto)
         sms = render(a, "sms", lang)
         assert len(sms) <= 160, sms
         assert sms.isascii(), sms
@@ -36,12 +36,13 @@ def test_todo_alerta_sai_em_whatsapp_e_sms_nos_3_idiomas(lang):
         assert "{" not in sms and "None" not in sms
 
 
-def test_whatsapp_pt_tem_acao_motivo_porque_e_confianca():
+def test_whatsapp_pt_tem_acao_motivo_confianca_e_como_responder():
     wa = render(evaluate_spraying(Weather(hours=make_hours()), now=NOW), "whatsapp", "pt")
     linhas = wa.splitlines()
     assert "Pulverize" in linhas[0] and "11h" in linhas[0]
     assert "km/h" in linhas[1]
-    assert "Por quê" in wa and "Confiança" in wa
+    assert "Confiança" in linhas[2] and "Responda 1" in linhas[2]
+    assert len(wa) <= 260  # cabe na tela do celular sem rolar
 
 
 def test_sms_de_geada_no_formato_do_guia():
@@ -68,7 +69,9 @@ def test_relatorio_tem_aviso_fixo_e_sms_curto():
     for lang in ("pt", "es", "en"):
         wa = render(rep, "whatsapp", lang)
         assert "/maps/1.png" in wa and "72/100" in wa
-    assert "Não substitui um engenheiro agrônomo" in render(rep, "whatsapp", "pt")
+        assert len(wa.splitlines()) <= 6, wa  # curto: os detalhes ficam no relatório do link
+    wa = render(rep, "whatsapp", "pt")
+    assert "Não substitui um engenheiro agrônomo" in wa and "Atenção: a chuva histórica" in wa and "(boa)" in wa
     sms = render(rep, "sms", "pt")
     assert len(sms) <= 160 and sms.isascii() and "72/100" in sms
 

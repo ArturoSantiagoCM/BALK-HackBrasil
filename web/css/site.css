@@ -55,7 +55,28 @@ th { background: var(--claro); }
 .mapa-pg .topo { flex: none; }
 .mapa-corpo { flex: 1; display: flex; min-height: 0; }
 .painel { width: 360px; max-width: 42vw; overflow-y: auto; padding: .9rem; border-right: 1px solid var(--borda); background: #fff; }
-#mapa { flex: 1; min-height: 300px; }
+.mapa-wrap { flex: 1; position: relative; min-height: 300px; min-width: 0; }
+#mapa { position: absolute; inset: 0; }
+/* barra de ferramentas sobre o mapa */
+.ferr { position: absolute; top: 8px; left: 8px; right: 64px; display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; z-index: 3; }
+.ferr-btn { flex: none; min-width: 92px; min-height: 52px; padding: .35rem .6rem; border: 2px solid var(--verde); border-radius: 10px; background: #fff; color: var(--verde-esc); cursor: pointer; text-align: left; font: inherit; line-height: 1.15; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.ferr-btn b { display: block; font-size: .95rem; }
+.ferr-btn small { display: block; font-size: .75rem; color: var(--suave); }
+.ferr-btn.ativo { background: var(--verde); color: #fff; }
+.ferr-btn.ativo small { color: #e6f3ea; }
+.ferr-arq { display: block; position: relative; }
+.ferr-arq input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+/* seletor de camadas */
+.camadas { position: absolute; top: 72px; right: 8px; z-index: 3; text-align: right; }
+.camadas-painel { margin-top: 6px; background: #fff; border-radius: 10px; padding: .7rem; width: 250px; max-width: 80vw; text-align: left; box-shadow: 0 2px 8px rgba(0,0,0,.35); max-height: 60vh; overflow-y: auto; font-size: .92rem; }
+.camadas-painel label { display: flex; gap: .5rem; align-items: flex-start; margin: .35rem 0; font-weight: 400; background: none; padding: 0; cursor: pointer; }
+.camadas-painel label input { width: 1.2rem; height: 1.2rem; margin-top: .1rem; flex: none; }
+.camadas-painel label small { display: block; color: var(--suave); }
+/* ações e dica na parte de baixo do mapa */
+.faixa { position: absolute; left: 8px; right: 8px; bottom: 78px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; z-index: 3; }
+.faixa .btn { box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.dica { position: absolute; left: 8px; right: 8px; bottom: 34px; margin: 0; padding: .35rem .6rem; background: rgba(20,80,47,.92); color: #fff; border-radius: 8px; font-size: .9rem; text-align: center; z-index: 3; }
+.dica:empty { display: none; }
 .talhao-item { border: 1.5px solid var(--borda); border-radius: 10px; padding: .55rem .7rem; margin: .45rem 0; cursor: pointer; background: #fff; text-align: left; width: 100%; font-size: .98rem; }
 .talhao-item.sel { border-color: var(--verde); background: var(--claro); }
 .talhao-item small { color: var(--suave); display: block; }
@@ -66,6 +87,8 @@ th { background: var(--claro); }
 @media (max-width: 760px) {
   .mapa-corpo { flex-direction: column-reverse; }
   .painel { width: 100%; max-width: none; max-height: 48%; border-right: 0; border-top: 1px solid var(--borda); }
-  #mapa { min-height: 40%; }
+  .mapa-wrap { min-height: 40%; }
+  .ferr-btn { min-width: 82px; }
+  .camadas { top: 68px; }
   html { font-size: 16px; }
 }

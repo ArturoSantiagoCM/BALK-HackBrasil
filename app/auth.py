@@ -40,6 +40,11 @@ def new_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 
 
+def site_phone(raw: str) -> str:
+    """Telefone digitado no site (ver db.typed_phone: ganha o 55 quando vem só com DDD)."""
+    return db.typed_phone(raw)
+
+
 def hash_code(phone: str, code: str) -> str:
     """HMAC do código com o segredo do servidor e o telefone (não dá para testar códigos contra uma cópia do banco)."""
     msg = f"{db.norm_phone(phone)}:{code}".encode()
@@ -57,7 +62,7 @@ def start_signup(phone: str, name: str, consents: list[str], ip: str, channel: s
     digits = "".join(c for c in phone if c.isdigit())
     if not 10 <= len(digits) <= 15:
         raise AuthError(422, "Informe o telefone com DDD, só números (ex.: 65 99999-0000).")
-    phone_n = db.norm_phone(phone)
+    phone_n = site_phone(phone)
     now = datetime.now()
     if db.get_contact_by_phone(phone_n) and not db.get_producer_by_phone(phone_n):
         # número que recebe os avisos de outra pessoa: resposta igual à de sucesso e nenhum código enviado (não revela quem está no BALK)
@@ -81,7 +86,7 @@ def start_signup(phone: str, name: str, consents: list[str], ip: str, channel: s
 
 def verify_signup(phone: str, code: str) -> dict:
     """Confere o código. Devolve a verificação usada (nome, consentimentos). Erros genéricos: não dizem o que falhou."""
-    phone_n = db.norm_phone(phone)
+    phone_n = site_phone(phone)
     v = db_site.open_verification(phone_n)
     generic = AuthError(400, "Código inválido ou expirado. Peça um novo.")
     if v is None:

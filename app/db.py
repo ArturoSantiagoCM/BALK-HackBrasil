@@ -96,6 +96,16 @@ def norm_phone(phone: str) -> str:
     return "+" + "".join(ch for ch in str(phone) if ch.isdigit())
 
 
+def typed_phone(raw: str) -> str:
+    """Telefone DIGITADO por uma pessoa (site, comando SUCESSOR): com DDD e sem o 55 (10 ou 11 dígitos) ganha o código do
+    Brasil, para bater com o número que o WhatsApp manda (sempre com o código do país). Com o 55 fica como está.
+    Não usar em número que chega do provedor: esse já vem completo."""
+    d = "".join(c for c in str(raw) if c.isdigit())
+    if 10 <= len(d) <= 11:
+        d = "55" + d
+    return "+" + d
+
+
 def _to_producer(row: sqlite3.Row) -> Producer:
     d = dict(row)
     d["consent"] = bool(d["consent"])
@@ -485,6 +495,25 @@ def add_escalation(producer_id: Optional[int], phone: str, note: str = "") -> No
                     (producer_id, phone, _now(), note))
 
 
-def list_escalations() -> list[dict]:
+def list_escalations(limit: int = 200) -> list[dict]:
+    """Pedidos de agrônomo (resposta 2), do mais novo para o mais antigo, com o aviso a que se referem (na nota)."""
     with connect() as con:
-        return [dict(r) for r in con.execute("SELECT * FROM escalations ORDER BY id").fetchall()]
+        return [dict(r) for r in con.execute("SELECT * FROM escalations ORDER BY id DESC LIMIT ?", (limit,)).fetchall()]
+
+
+def metrics(days: int = 7, now: Optional[datetime] = None) -> dict:
+    """Números que mostram se o BALK está servindo (seção 5.8 do plano): alcance, avisos, retorno do produtor e entrega."""
+    from datetime import timedelta
+    since = ((now or datetime.now()) - timedelta(days=days)).isoformat(timespec="seconds")
+    with connect() as con:
+        one = lambda q, *a: con.execute(q, a).fetchone()[0]  # noqa: E731
+        ativos = one("SELECT COUNT(*) FROM producers WHERE active=1 AND consent=1 AND state='ATIVO'")
+        avisos = one("SELECT COUNT(*) FROM alert_log WHERE sent_at >= ?", since)
+        r1 = one("SELECT COUNT(*) FROM messages WHERE direction='in' AND kind='resposta' AND content LIKE '1%' AND created_at >= ?", since)
+        r2 = one("SELECT COUNT(*) FROM escalations WHERE created_at >= ?", since)
+        falhas = one("SELECT COUNT(*) FROM messages WHERE direction='out' AND state='failed' AND created_at >= ?", since)
+        saidas = one("SELECT COUNT(*) FROM messages WHERE direction='out' AND created_at >= ?", since)
+        return {"dias": days, "produtores_ativos": ativos, "talhoes": one("SELECT COUNT(*) FROM plots"),
+                "avisos_enviados": avisos, "respostas_vou_fazer": r1, "pedidos_de_agronomo": r2,
+                "taxa_de_resposta_pct": round(100 * (r1 + r2) / avisos) if avisos else None,
+                "mensagens_enviadas": saidas, "mensagens_com_falha": falhas}

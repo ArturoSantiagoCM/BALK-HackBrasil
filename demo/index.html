@@ -5,195 +5,445 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BALK · simulador</title>
 <style>
-  :root { --verde:#0b6e4f; --verde2:#075e54; --bolha:#dcf8c6; --fundo:#efeae2; --texto:#1c1c1c; --cinza:#667; }
+  :root { --wa:#008069; --wa2:#005c4b; --bolha:#d9fdd3; --fundo:#efeae2; --txt:#111b21; --cinza:#667781; --azul:#53bdeb; --ok:#0b6e4f; }
   * { box-sizing:border-box; }
-  body { margin:0; font:15px/1.4 system-ui,Segoe UI,Roboto,sans-serif; background:#f4f6f4; color:var(--texto); }
-  header { background:var(--verde2); color:#fff; padding:12px 20px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
-  header h1 { margin:0; font-size:20px; letter-spacing:.5px; }
-  header small { opacity:.85; flex:1; }
-  button { font:inherit; cursor:pointer; border:0; border-radius:8px; padding:7px 12px; background:var(--verde); color:#fff; }
-  button.sec { background:#e3ebe7; color:var(--verde2); }
-  button.ghost { background:transparent; color:#fff; border:1px solid #fff8; }
-  main { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; padding:16px; max-width:1500px; margin:auto; }
-  section { background:#fff; border-radius:14px; box-shadow:0 1px 4px #0002; padding:14px; display:flex; flex-direction:column; gap:10px; min-width:0; }
-  h2 { margin:0; font-size:16px; color:var(--verde2); }
-  .hint { color:var(--cinza); font-size:13px; margin:0; }
-  .chat { background:var(--fundo); border-radius:10px; height:380px; overflow:auto; padding:10px; display:flex; flex-direction:column; gap:6px; }
-  .b { max-width:88%; padding:7px 10px; border-radius:10px; white-space:pre-wrap; word-wrap:break-word; box-shadow:0 1px 1px #0002; background:#fff; font-size:14px; }
-  .b.me { align-self:flex-end; background:var(--bolha); }
-  .b img { width:100%; border-radius:6px; margin-top:6px; display:block; }
-  .row { display:flex; gap:6px; }
-  .row input, .row select { flex:1; font:inherit; padding:7px 9px; border:1px solid #ccd; border-radius:8px; min-width:0; }
-  .chips { display:flex; flex-wrap:wrap; gap:6px; }
-  .chips button { font-size:12px; padding:4px 9px; }
-  .sms { background:#222; border-radius:18px; padding:14px; }
-  .sms .tela { background:#b9d4a1; color:#162; font:14px/1.3 ui-monospace,Consolas,monospace; height:300px; overflow:auto; padding:8px; border-radius:6px; border:3px solid #333; }
-  .sms .tela div { margin-bottom:8px; border-bottom:1px dashed #6a8; padding-bottom:6px; white-space:pre-wrap; }
-  .sms .tela .eu { text-align:right; color:#254; }
+  body { margin:0; font:15px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:#dfe5e2; color:var(--txt); }
+  header.top { background:#0b3d2e; color:#fff; padding:10px 18px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  header.top h1 { margin:0; font-size:19px; letter-spacing:.5px; }
+  header.top small { opacity:.85; flex:1; min-width:220px; }
+  header.top a, header.top button { color:#fff; background:transparent; border:1px solid #ffffff88; border-radius:8px; padding:6px 10px; font:inherit; cursor:pointer; text-decoration:none; }
+  main { display:grid; grid-template-columns: 390px 330px minmax(360px,1fr); gap:18px; padding:16px; max-width:1500px; margin:auto; align-items:start; }
+  @media (max-width:1150px) { main { grid-template-columns: 1fr 1fr; } .ops { grid-column:1/-1; } }
+  @media (max-width:760px) { main { grid-template-columns: 1fr; } }
+  .rotulo { font-size:13px; color:#334; margin:0 0 6px; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .rotulo select, .rotulo input { font:inherit; font-size:13px; padding:4px 6px; border:1px solid #aab; border-radius:6px; max-width:210px; }
+  /* ---------- celular com WhatsApp ---------- */
+  .phone { width:380px; max-width:100%; height:760px; background:#111; border-radius:42px; padding:14px 11px; box-shadow:0 10px 30px #0005; position:relative; }
+  .phone .tela { background:var(--fundo); height:100%; border-radius:30px; overflow:hidden; display:flex; flex-direction:column; position:relative; }
+  .status { background:var(--wa2); color:#fff; font-size:12px; padding:6px 18px 2px; display:flex; justify-content:space-between; }
+  .wa-head { background:var(--wa); color:#fff; display:flex; align-items:center; gap:10px; padding:8px 10px 10px; }
+  .wa-head .av { width:38px; height:38px; border-radius:50%; background:#25d366; display:grid; place-items:center; font-weight:800; color:#fff; flex:none; }
+  .wa-head .nm { flex:1; line-height:1.15; } .wa-head .nm b { display:block; font-size:16px; } .wa-head .nm span { font-size:12px; opacity:.9; }
+  .wa-head .ic { opacity:.9; font-size:18px; letter-spacing:8px; }
+  .chat { flex:1; overflow-y:auto; padding:10px 10px 6px; display:flex; flex-direction:column; gap:4px;
+          background-color:var(--fundo); background-image:radial-gradient(#d6cfc4 1px, transparent 1px); background-size:18px 18px; }
+  .dia { align-self:center; background:#fff; color:var(--cinza); font-size:12px; padding:3px 10px; border-radius:8px; margin:6px 0; box-shadow:0 1px 1px #0001; }
+  .aviso-e2e { align-self:center; background:#ffeecd; color:#54656f; font-size:11.5px; padding:5px 10px; border-radius:8px; text-align:center; max-width:90%; margin-bottom:6px; }
+  .b { max-width:86%; padding:6px 8px 4px 9px; border-radius:8px; box-shadow:0 1px 1px #0002; background:#fff; font-size:14.2px; white-space:pre-wrap; word-wrap:break-word; position:relative; }
+  .b.eu { align-self:flex-end; background:var(--bolha); }
+  .b .meta { float:right; font-size:11px; color:var(--cinza); margin:6px 0 -2px 10px; white-space:nowrap; }
+  .b .meta .tk { color:var(--azul); margin-left:3px; }
+  .b a { color:#027eb5; word-break:break-all; }
+  .b img { display:block; width:100%; border-radius:6px; margin:2px 0 4px; }
+  .prev { display:block; background:#f0f2f5; border-left:4px solid var(--wa); border-radius:6px; padding:6px 8px; margin:4px 0 2px; text-decoration:none; color:var(--txt); white-space:normal; }
+  .prev b { display:block; font-size:13px; } .prev small { color:var(--cinza); font-size:12px; }
+  .loc { background:#e7f3ef; border-radius:6px; padding:16px 8px; text-align:center; font-size:13px; margin-bottom:2px; }
+  .digitando { align-self:flex-start; background:#fff; border-radius:8px; padding:6px 10px; color:var(--cinza); font-style:italic; font-size:13px; }
+  .rapidas { display:flex; gap:6px; flex-wrap:wrap; padding:6px 8px 0; background:var(--fundo); }
+  .rapidas button { background:#fff; color:var(--wa2); border:1px solid #cfd8d3; border-radius:16px; padding:5px 11px; font:inherit; font-size:13px; cursor:pointer; box-shadow:0 1px 1px #0001; }
+  .entrada { display:flex; gap:6px; align-items:center; padding:7px 8px 10px; background:var(--fundo); }
+  .entrada .cx { flex:1; display:flex; align-items:center; background:#fff; border-radius:22px; padding:2px 6px 2px 12px; }
+  .entrada input { flex:1; border:0; outline:0; font:inherit; padding:8px 4px; background:transparent; min-width:0; }
+  .entrada .clip { border:0; background:transparent; font-size:20px; cursor:pointer; color:#54656f; }
+  .entrada .env { width:44px; height:44px; border-radius:50%; border:0; background:var(--wa); color:#fff; font-size:18px; cursor:pointer; flex:none; }
+  .folha { position:absolute; left:10px; right:10px; bottom:70px; background:#fff; border-radius:12px; box-shadow:0 4px 16px #0004; padding:8px; display:none; z-index:5; }
+  .folha.on { display:block; }
+  .folha button { display:block; width:100%; text-align:left; background:none; border:0; padding:9px 8px; font:inherit; cursor:pointer; border-radius:6px; }
+  .folha button:hover { background:#f0f2f5; }
+  /* ---------- celular simples com SMS ---------- */
+  .basico { width:300px; max-width:100%; background:linear-gradient(#3a3f44,#23272a); border-radius:38px 38px 50px 50px; padding:22px 18px 26px; box-shadow:0 10px 30px #0005; }
+  .basico .marca { color:#aeb6bb; text-align:center; font-size:12px; letter-spacing:3px; margin-bottom:8px; }
+  .lcd { background:#c7d9a6; border:4px solid #1c1f21; border-radius:8px; height:330px; display:flex; flex-direction:column; font:13px/1.35 ui-monospace,Consolas,monospace; color:#1d2b12; }
+  .lcd .cab { background:#9fb57e; padding:3px 6px; display:flex; justify-content:space-between; font-weight:700; }
+  .lcd .lista { flex:1; overflow-y:auto; padding:6px; }
+  .lcd .sms { border-bottom:1px dashed #7f9661; padding:4px 0 6px; white-space:pre-wrap; word-wrap:break-word; }
+  .lcd .sms .de { font-weight:700; display:flex; justify-content:space-between; }
+  .lcd .sms.eu { text-align:right; color:#3b4a2a; }
+  .lcd .rod { border-top:2px solid #7f9661; padding:3px 6px; display:flex; gap:4px; }
+  .lcd .rod input { flex:1; min-width:0; background:#d9e8bd; border:1px solid #7f9661; font:inherit; padding:2px 4px; }
+  .lcd .rod span { font-size:11px; align-self:center; }
+  .teclas { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:14px; }
+  .teclas button { background:#4a5055; color:#eef; border:0; border-radius:14px; padding:9px 4px; font:13px/1.1 system-ui; cursor:pointer; box-shadow:inset 0 -2px #0006; }
+  .teclas button.l { grid-column:span 3; background:#2f6b4f; }
+  .teclas button.m { grid-column:span 3; }
+  /* ---------- painel da operação ---------- */
+  .ops { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .card { background:#fff; border-radius:14px; box-shadow:0 1px 4px #0002; padding:14px; }
+  .card h2 { margin:0 0 8px; font-size:16px; color:#0b3d2e; }
+  .hint { color:#556; font-size:13px; margin:4px 0; }
+  .linha { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:6px 0; }
+  .btn { font:inherit; cursor:pointer; border:0; border-radius:8px; padding:7px 12px; background:var(--ok); color:#fff; }
+  .btn.sec { background:#e3ebe7; color:#0b3d2e; }
+  select.f { font:inherit; padding:6px; border:1px solid #ccd; border-radius:8px; min-width:0; max-width:100%; }
   table { border-collapse:collapse; width:100%; font-size:13px; }
-  th, td { padding:5px 6px; border-bottom:1px solid #e5e8e6; text-align:right; }
-  th:first-child, td:first-child { text-align:left; }
-  .feed { max-height:420px; overflow:auto; display:flex; flex-direction:column; gap:8px; }
-  .card { border:1px solid #dde; border-radius:10px; padding:8px 10px; font-size:13px; background:#fafcfb; }
-  .card .t { display:flex; justify-content:space-between; color:var(--cinza); font-size:12px; margin-bottom:4px; }
-  .badge { border-radius:10px; padding:0 7px; color:#fff; font-size:11px; }
-  .badge.wa { background:#25d366; } .badge.sms { background:#555; }
-  .card img { width:100%; border-radius:6px; margin-top:6px; }
-  .card pre { margin:0; white-space:pre-wrap; font:inherit; }
-  footer { text-align:center; color:var(--cinza); font-size:12px; padding:0 16px 20px; }
+  th, td { padding:5px 6px; border-bottom:1px solid #e5e8e6; text-align:left; vertical-align:top; }
+  tr.cl { cursor:pointer; } tr.cl:hover { background:#f2f7f4; }
+  .feed { max-height:420px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; }
+  .item { border:1px solid #e1e6e3; border-radius:10px; padding:7px 9px; font-size:13px; background:#fafcfb; }
+  .item .t { display:flex; justify-content:space-between; gap:8px; color:#667; font-size:12px; margin-bottom:3px; }
+  .item pre { margin:0; white-space:pre-wrap; font:inherit; max-height:5.6em; overflow:hidden; }
+  .tag { border-radius:10px; padding:0 7px; color:#fff; font-size:11px; white-space:nowrap; }
+  .tag.wa { background:#25d366; } .tag.sms { background:#555; } .tag.cod { background:#7b1fa2; }
+  footer { text-align:center; color:#556; font-size:12px; padding:0 16px 20px; }
 </style>
 </head>
 <body>
-<header>
-  <h1>BALK</h1>
-  <small>Orientação agronômica curta por WhatsApp e SMS · simulador (sem login, dados em cache/simulados)</small>
+<header class="top">
+  <h1>BALK · simulador</h1>
+  <small>Dois celulares de verdade-mentira recebem tudo o que o BALK envia: conversa, código do site, relatórios e alertas. Dados de demonstração.</small>
   <span id="modo"></span>
-  <button class="ghost" id="reset">Reiniciar demo</button>
+  <a href="/app/cadastro.html" target="_blank" rel="noopener">Abrir o site do produtor</a>
+  <button id="reset" type="button">Reiniciar demo</button>
 </header>
+
 <main>
+  <!-- ======================= WhatsApp ======================= -->
   <section>
-    <h2>1 · WhatsApp — produtor novo</h2>
-    <p class="hint">Cadastro por conversa: consentimento, local, cultura e plantio. Ao ficar ativo, chega o relatório com mapa.</p>
-    <div class="chat" id="chat-wa"></div>
-    <div class="chips" id="chips-wa"></div>
-    <div class="row"><input id="in-wa" placeholder="Escreva uma mensagem"><button id="go-wa">Enviar</button></div>
+    <p class="rotulo">Celular com WhatsApp do número
+      <select id="wa-num"></select>
+      <button class="btn sec" id="wa-novo" type="button" style="padding:3px 8px">outro…</button>
+    </p>
+    <div class="phone"><div class="tela">
+      <div class="status"><span id="relogio">--:--</span><span>4G ▮▮▮ 🔋</span></div>
+      <div class="wa-head"><span>←</span><div class="av">B</div>
+        <div class="nm"><b>BALK ✔</b><span>conta comercial · online</span></div><span class="ic">⋮</span></div>
+      <div class="chat" id="wa-chat"></div>
+      <div class="rapidas" id="wa-rapidas"></div>
+      <div class="folha" id="wa-folha"></div>
+      <div class="entrada">
+        <div class="cx"><input id="wa-in" placeholder="Mensagem" autocomplete="off"><button class="clip" id="wa-clip" title="Enviar localização" type="button">📎</button></div>
+        <button class="env" id="wa-go" type="button" title="Enviar">➤</button>
+      </div>
+    </div></div>
   </section>
 
+  <!-- ======================= SMS ======================= -->
   <section>
-    <h2>2 · Celular simples — SMS</h2>
-    <p class="hint">Sem internet nem app. Mensagem de até 160 caracteres, sem acento. Responda 1 (ok) ou 2 (ajuda).</p>
-    <div class="sms"><div class="tela" id="chat-sms"></div></div>
-    <div class="row">
-      <select id="sms-phone">
-        <option value="+5500900000003">+5500900000003 (cooperado, Aparados da Serra)</option>
-        <option value="+5500900002222">+5500900002222 (número novo)</option>
-      </select>
+    <p class="rotulo">Celular simples (só SMS) do número <select id="sms-num"></select>
+      <button class="btn sec" id="sms-novo" type="button" style="padding:3px 8px">outro…</button></p>
+    <div class="basico">
+      <div class="marca">B A L K · 2G</div>
+      <div class="lcd">
+        <div class="cab"><span>Mensagens</span><span id="sms-cont">0</span></div>
+        <div class="lista" id="sms-lista"></div>
+        <div class="rod"><input id="sms-in" maxlength="160" placeholder="Escrever"><span id="sms-car">160</span></div>
+      </div>
+      <div class="teclas" id="sms-teclas"></div>
     </div>
-    <div class="chips" id="chips-sms"></div>
-    <div class="row"><input id="in-sms" placeholder="Digite o SMS"><button id="go-sms">Enviar</button></div>
+    <p class="hint" style="max-width:300px">Sem internet nem aplicativo. Até 160 caracteres, sem acento. Responda 1 (ok) ou 2 (ajuda).</p>
   </section>
 
-  <section>
-    <h2>3 · Cooperativa e logística</h2>
-    <div class="row">
-      <button id="csv">Importar CSV (5 produtores)</button>
-      <button id="daily">Rodar alertas do dia</button>
+  <!-- ======================= Operação ======================= -->
+  <section class="ops">
+    <div class="card">
+      <h2>Operação do dia</h2>
+      <div class="linha">
+        <button class="btn" id="csv" type="button">Importar CSV da cooperativa (5 produtores)</button>
+        <button class="btn" id="daily" type="button">Rodar alertas do dia</button>
+        <select class="f" id="hora" title="Hora da rodada">
+          <option value="6">às 6h</option><option value="10" selected>às 10h</option><option value="16">às 16h</option><option value="22">às 22h (horário quieto)</option>
+        </select>
+      </div>
+      <p class="hint">O CSV traz produtores fictícios (telefones +55009…). Em produção cada um recebe um convite e só passa a receber depois de responder SIM. "Rodar alertas do dia" faz o que o cron das 06:05 faz: analisa cada talhão, aplica o silêncio e envia. Às 22h só a geada passa.</p>
+      <p class="hint" id="op-msg"></p>
     </div>
-    <p class="hint">O CSV vem de uma cooperativa fictícia (telefones falsos). "Alertas do dia" faz o que o fluxo diário do n8n faz.</p>
-    <h2 style="margin-top:6px">Previsão de recebimento (7 dias)</h2>
-    <table id="forecast"><thead><tr><th>Dia</th><th>Toneladas</th><th>Caminhões</th><th>Produtores</th></tr></thead><tbody></tbody></table>
-    <h2 style="margin-top:6px">Colheita e escoamento</h2>
-    <div class="row"><select id="lg-prod"></select><select id="lg-dest"></select></div>
-    <button id="lg-go" class="sec">Melhor hora de saída</button>
-    <div class="card" id="lg-out" style="display:none"></div>
-  </section>
 
-  <section style="grid-column:1/-1">
-    <h2>Mensagens enviadas pelo BALK</h2>
-    <div class="feed" id="feed"><p class="hint">Importe o CSV ou rode os alertas do dia para ver as mensagens.</p></div>
+    <div class="card">
+      <h2>Produtores cadastrados</h2>
+      <p class="hint">Clique numa linha para abrir a conversa no celular certo.</p>
+      <div style="max-height:260px;overflow-y:auto"><table id="prod"><thead><tr><th>Telefone</th><th>Canal</th><th>Estado</th><th>Cultura</th><th>Talhões</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <div class="card">
+      <h2>Equipe: pedidos de agrônomo e métricas (7 dias)</h2>
+      <p class="hint">Quando o produtor responde 2, o pedido chega aqui com o aviso a que se refere e o link do relatório. A resposta 1 conta como retorno.</p>
+      <div class="linha" id="metricas"></div>
+      <div id="pedidos"></div>
+    </div>
+
+    <div class="card">
+      <h2>Cooperativa: previsão de recebimento (7 dias)</h2>
+      <table id="forecast"><thead><tr><th>Dia</th><th>Toneladas</th><th>Caminhões</th><th>Produtores</th></tr></thead><tbody></tbody></table>
+      <h2 style="margin-top:12px">Colheita e escoamento</h2>
+      <div class="linha"><select class="f" id="lg-prod"></select><select class="f" id="lg-dest"></select>
+        <button class="btn sec" id="lg-go" type="button">Melhor hora de saída</button></div>
+      <div class="item" id="lg-out" style="display:none"></div>
+    </div>
+
+    <div class="card">
+      <h2>Tudo o que o BALK enviou</h2>
+      <p class="hint">O registro do provedor de demonstração, em tempo real: cada mensagem com hora, número, canal e para quê.</p>
+      <div class="feed" id="feed"><p class="hint">Nada enviado ainda.</p></div>
+    </div>
   </section>
 </main>
-<footer>Estimativa orientativa a partir de dados de satélite e clima. Não substitui um engenheiro agrônomo.</footer>
+<footer>Estimativa orientativa a partir de dados de satélite e clima. Não substitui um engenheiro agrônomo. Simulador só existe fora de produção.</footer>
 
 <script>
-const $ = s => document.querySelector(s);
-const WA_PHONE = "+5500900001111";
-const PONTOS = { ibirapuera:[-23.5874,-46.6576], pnb:[-15.7347,-48.0152], aparados:[-29.1739,-50.0967] };
+"use strict";
+const $ = (s) => document.querySelector(s);
+const LUGARES = [
+  ["Lavoura em Sorriso (MT)", -12.62, -55.85], ["Lavoura em Rio Verde (GO)", -17.85, -50.95],
+  ["Lavoura em Londrina (PR)", -23.40, -51.25], ["Lavoura em Passo Fundo (RS)", -28.30, -52.35],
+  ["Serra gaúcha (frio, geada)", -29.17, -50.10],
+];
+const conversas = new Map();   // telefone -> [{eu, texto, media, hora, tipo}]
+let waNum = "+5565999990001", smsNum = "+5500900000003", ultimoSeq = 0, produtores = [];
 
+// ---------- utilidades
+function norm(t) { return "+" + String(t).replace(/\D/g, ""); }
+function agora() { return new Date().toTimeString().slice(0, 5); }
+function hora(iso) { return iso ? iso.slice(11, 16) : agora(); }
 async function api(path, opts) {
   const r = await fetch(path, opts);
-  if (!r.ok) throw new Error(path + " → " + r.status + " " + await r.text());
+  if (!r.ok) throw new Error(path + " → " + r.status + " " + (await r.text()).slice(0, 200));
   return r.json();
 }
-const post = (p, body) => api(p, { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify(body || {}) });
-const esc = s => s.replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
-const fmt = s => esc(s).replace(/\*(.+?)\*/g, "<b>$1</b>")
-  .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');  // link do relatório detalhado
+const post = (p, body) => api(p, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body || {}) });
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function formatar(s) {  // negrito do WhatsApp (*texto*) e links clicáveis, sempre sobre texto já escapado
+  return esc(s).replace(/\*(.+?)\*/g, "<b>$1</b>").replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
+function salvarSessao() {
+  try { sessionStorage.setItem("balk-sim", JSON.stringify({ c: [...conversas], s: ultimoSeq, wa: waNum, sms: smsNum })); } catch (e) { /* cheio: segue sem guardar */ }
+}
+function restaurarSessao() {
+  try {
+    const d = JSON.parse(sessionStorage.getItem("balk-sim") || "null");
+    if (!d) return;
+    d.c.forEach(([k, v]) => conversas.set(k, v));
+    ultimoSeq = d.s || 0; waNum = d.wa || waNum; smsNum = d.sms || smsNum;
+  } catch (e) { /* sessão corrompida: começa do zero */ }
+}
+function guardar(tel, m) {
+  tel = norm(tel);
+  if (!conversas.has(tel)) conversas.set(tel, []);
+  conversas.get(tel).push(m);
+  salvarSessao();
+  if (tel === norm(waNum) && m.canal !== "sms") desenharWa();
+  if (tel === norm(smsNum) && m.canal !== "whatsapp") desenharSms();
+}
 
-function bubble(box, text, me, media) {
+// ---------- WhatsApp
+function previa(url) {
+  if (/\/r\/[\w-]+$/.test(url)) return ["Relatório detalhado do BALK", "Dados, mapas da área, a conta da nota e o porquê de cada aviso"];
+  if (/\/m\/[\w-]+$/.test(url)) return ["Mapa dos seus talhões", "Link de uso único: abre o mapa já identificado"];
+  if (/\/h\/[\w-]+$/.test(url)) return ["Histórico dos avisos", "Somente leitura"];
+  return null;
+}
+function bolha(m) {
   const d = document.createElement("div");
-  d.className = "b" + (me ? " me" : "");
-  d.innerHTML = fmt(text) + (media ? `<img src="${media}" alt="mapa da análise">` : "");
-  box.appendChild(d); box.scrollTop = box.scrollHeight;
+  d.className = "b" + (m.eu ? " eu" : "");
+  let html = "";
+  if (m.loc) html += `<div class="loc">📍 <b>Localização</b><br>${m.loc[0].toFixed(4)}, ${m.loc[1].toFixed(4)}</div>`;
+  if (m.media) html += `<img src="${esc(m.media)}" alt="Mapa-resumo da análise" loading="lazy">`;
+  if (m.texto) html += formatar(m.texto);
+  const url = (m.texto || "").match(/https?:\/\/\S+/);
+  const pv = url && previa(url[0]);
+  if (pv) html += `<a class="prev" href="${esc(url[0])}" target="_blank" rel="noopener"><b>${esc(pv[0])}</b><small>${esc(pv[1])}</small></a>`;
+  html += `<span class="meta">${esc(m.hora)}${m.eu ? '<span class="tk">✓✓</span>' : ""}</span>`;
+  d.innerHTML = html;
+  return d;
 }
-function smsLine(text, me) {
-  const d = document.createElement("div"); if (me) d.className = "eu";
-  d.textContent = (me ? "> " : "") + text;
-  $("#chat-sms").appendChild(d); $("#chat-sms").scrollTop = 1e9;
+function rapidas(ultimo) {
+  const box = $("#wa-rapidas"); box.replaceChildren();
+  if (!ultimo || ultimo.eu) return;
+  const t = ultimo.texto || "";
+  let opc = [];
+  if (/Responda SIM/i.test(t)) opc = ["SIM", "SAIR"];
+  else if (/pin de localiza|lat,lon|município\)/i.test(t)) opc = ["📍 Enviar localização"];
+  else if (/Qual cultura/i.test(t) || /Não reconheci a cultura/i.test(t)) opc = ["soja", "milho", "café", "feijão", "hortaliça", "não sei"];
+  else if (/Quando plantou|Data inválida/i.test(t)) { const d = new Date(Date.now() - 38 * 864e5); opc = [`${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`, "não sei"]; }
+  else if (/Responda 1/i.test(t)) opc = ["1", "2"];
+  else opc = ["MAPA", "HISTORICO", "PRODUTIVIDADE 3,4", "SAIR"];
+  for (const o of opc) {
+    const b = document.createElement("button"); b.type = "button";
+    b.textContent = o === "1" ? "1 · vou fazer" : o === "2" ? "2 · falar com agrônomo" : o;
+    b.onclick = () => o.startsWith("📍") ? abrirFolha() : enviarWa(o);
+    box.append(b);
+  }
 }
-function feedCard(m) {
-  const f = $("#feed"); if (f.querySelector("p")) f.innerHTML = "";
-  const c = document.createElement("div"); c.className = "card";
-  const wa = m.channel !== "sms";
-  c.innerHTML = `<div class="t"><span>${esc(m.phone)} · ${esc(m.label || "")}</span><span class="badge ${wa ? "wa" : "sms"}">${wa ? "WhatsApp" : "SMS"}</span></div>` +
-    `<pre>${fmt(m.text)}</pre>` + (m.media_url && wa ? `<img src="${m.media_url}" alt="mapa">` : "");
-  f.prepend(c);
-  if (!wa && m.phone === $("#sms-phone").value) smsLine(m.text, false);
+function desenharWa() {
+  const chat = $("#wa-chat"); chat.replaceChildren();
+  const av = document.createElement("div"); av.className = "aviso-e2e";
+  av.textContent = "🔒 Simulação. Esta conversa é com o servidor do BALK em modo de demonstração."; chat.append(av);
+  const dia = document.createElement("div"); dia.className = "dia"; dia.textContent = "HOJE"; chat.append(dia);
+  const msgs = (conversas.get(norm(waNum)) || []).filter((m) => m.canal !== "sms");
+  if (!msgs.length) { const p = document.createElement("div"); p.className = "dia"; p.textContent = 'Escreva "Oi" para falar com o BALK'; chat.append(p); }
+  msgs.forEach((m) => chat.append(bolha(m)));
+  rapidas(msgs[msgs.length - 1]);
+  chat.scrollTop = chat.scrollHeight;
 }
+async function enviarWa(texto, loc) {
+  if (!texto && !loc) return;
+  guardar(waNum, { eu: true, texto: texto || "", loc, hora: agora(), canal: "whatsapp" });
+  const dig = document.createElement("div"); dig.className = "digitando"; dig.textContent = "BALK está digitando…";
+  $("#wa-chat").append(dig); $("#wa-chat").scrollTop = 1e9;
+  try {
+    const body = { phone: waNum, text: texto || "", channel: "whatsapp" };
+    if (loc) { body.lat = loc[0]; body.lon = loc[1]; }
+    const r = await post("/simulate", body);
+    for (const m of r.messages) if (m.kind !== "notify") {
+      guardar(waNum, { eu: false, texto: m.text, hora: agora(), canal: "whatsapp" });
+      if (m.media_url) guardar(waNum, { eu: false, texto: "", media: m.media_url, hora: agora(), canal: "whatsapp" });  // a imagem vem depois, como no WhatsApp
+    }
+    // o mapa-resumo vai como imagem depois do texto, como o WhatsApp de verdade
+  } catch (e) { guardar(waNum, { eu: false, texto: "⚠ " + e.message, hora: agora(), canal: "whatsapp" }); }
+  finally { dig.remove(); carregarEstado(); }
+}
+function abrirFolha() {
+  const f = $("#wa-folha"); f.replaceChildren();
+  const t = document.createElement("b"); t.textContent = "Enviar localização"; t.style.cssText = "display:block;padding:4px 8px"; f.append(t);
+  const at = document.createElement("button"); at.type = "button"; at.textContent = "📡 Minha localização atual (GPS do computador)";
+  at.onclick = () => { f.classList.remove("on"); navigator.geolocation ? navigator.geolocation.getCurrentPosition((p) => enviarWa("", [p.coords.latitude, p.coords.longitude]), () => alert("Sem localização. Escolha um lugar da lista.")) : alert("Sem GPS."); };
+  f.append(at);
+  for (const [n, la, lo] of LUGARES) { const b = document.createElement("button"); b.type = "button"; b.textContent = "📍 " + n; b.onclick = () => { f.classList.remove("on"); enviarWa("", [la, lo]); }; f.append(b); }
+  f.classList.add("on");
+}
+$("#wa-clip").onclick = () => $("#wa-folha").classList.contains("on") ? $("#wa-folha").classList.remove("on") : abrirFolha();
+$("#wa-go").onclick = () => { const v = $("#wa-in").value.trim(); $("#wa-in").value = ""; enviarWa(v); };
+$("#wa-in").onkeydown = (e) => { if (e.key === "Enter") $("#wa-go").click(); };
 
-// --- WhatsApp
-async function sendWA(text, loc) {
-  if (text) bubble($("#chat-wa"), text, true); else if (loc) bubble($("#chat-wa"), "📍 localização enviada (" + loc.join(", ") + ")", true);
-  const body = { phone: WA_PHONE, text: text || "", channel: "whatsapp" };
-  if (loc) { body.lat = loc[0]; body.lon = loc[1]; }
-  const r = await post("/simulate", body);
-  r.messages.forEach(m => bubble($("#chat-wa"), m.text, false, m.media_url));
+// ---------- SMS
+function desenharSms() {
+  const box = $("#sms-lista"); box.replaceChildren();
+  const msgs = (conversas.get(norm(smsNum)) || []).filter((m) => m.canal !== "whatsapp");
+  if (!msgs.length) { const p = document.createElement("div"); p.textContent = "Caixa vazia. Mande BALK + cultura + data + cidade, ou use as teclas."; box.append(p); }
+  for (const m of msgs) {
+    const d = document.createElement("div"); d.className = "sms" + (m.eu ? " eu" : "");
+    const de = document.createElement("div"); de.className = "de";
+    de.innerHTML = `<span>${m.eu ? "Eu" : "BALK"}</span><span>${esc(m.hora)}</span>`;
+    const tx = document.createElement("div"); tx.textContent = m.texto;
+    d.append(de, tx); box.append(d);
+  }
+  $("#sms-cont").textContent = String(msgs.filter((m) => !m.eu).length);
+  box.scrollTop = box.scrollHeight;
 }
-$("#go-wa").onclick = () => { const v = $("#in-wa").value.trim(); if (v) { $("#in-wa").value = ""; sendWA(v); } };
-$("#in-wa").onkeydown = e => { if (e.key === "Enter") $("#go-wa").click(); };
-[["Oi", () => sendWA("Oi")], ["SIM", () => sendWA("SIM")],
- ["📍 Parque Ibirapuera", () => sendWA("", PONTOS.ibirapuera)], ["📍 Parque Nac. de Brasília", () => sendWA("", PONTOS.pnb)],
- ["soja", () => sendWA("soja")], ["não sei", () => sendWA("não sei")], ["20/07", () => sendWA("20/07")], ["2 (ajuda)", () => sendWA("2")], ["SAIR", () => sendWA("SAIR")]
-].forEach(([t, fn]) => { const b = document.createElement("button"); b.className = "sec"; b.textContent = t; b.onclick = fn; $("#chips-wa").appendChild(b); });
-
-// --- SMS
-async function sendSMS(text) {
-  if (!text) return;
-  smsLine(text, true);
-  const r = await post("/simulate", { phone: $("#sms-phone").value, text, channel:"sms" });
-  r.messages.forEach(m => smsLine(m.text, false));
+async function enviarSms(texto) {
+  if (!texto) return;
+  guardar(smsNum, { eu: true, texto, hora: agora(), canal: "sms" });
+  try {
+    const r = await post("/simulate", { phone: smsNum, text: texto, channel: "sms" });
+    for (const m of r.messages) if (m.kind !== "notify") guardar(smsNum, { eu: false, texto: m.text, hora: agora(), canal: "sms" });
+  } catch (e) { guardar(smsNum, { eu: false, texto: "ERRO " + e.message, hora: agora(), canal: "sms" }); }
+  carregarEstado();
 }
-$("#go-sms").onclick = () => { const v = $("#in-sms").value.trim(); $("#in-sms").value = ""; sendSMS(v); };
-$("#in-sms").onkeydown = e => { if (e.key === "Enter") $("#go-sms").click(); };
-["BALK soja 20/10 Sorriso MT", "SIM", "1", "2", "SAIR"].forEach(t => {
-  const b = document.createElement("button"); b.className = "sec"; b.textContent = t; b.onclick = () => sendSMS(t); $("#chips-sms").appendChild(b);
+$("#sms-in").oninput = () => { $("#sms-car").textContent = String(160 - $("#sms-in").value.length); };
+$("#sms-in").onkeydown = (e) => { if (e.key === "Enter") { const v = $("#sms-in").value.trim(); $("#sms-in").value = ""; $("#sms-car").textContent = "160"; enviarSms(v); } };
+[["1", "1 (ok)"], ["2", "2 (ajuda)"], ["SIM", "SIM"], ["SAIR", "SAIR"], ["HISTORICO", "HIST."], ["MAPA", "MAPA"]].forEach(([v, l]) => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = l; b.onclick = () => enviarSms(v); $("#sms-teclas").append(b);
 });
+(() => { const b = document.createElement("button"); b.type = "button"; b.className = "l"; b.textContent = "BALK soja 20/10 Sorriso MT"; b.onclick = () => enviarSms("BALK soja 20/10 Sorriso MT"); $("#sms-teclas").append(b);
+  const e = document.createElement("button"); e.type = "button"; e.className = "m"; e.textContent = "Enviar o que escrevi"; e.onclick = () => { const v = $("#sms-in").value.trim(); $("#sms-in").value = ""; enviarSms(v); }; $("#sms-teclas").append(e); })();
 
-// --- Cooperativa
+// ---------- números dos celulares
+function opcoes(sel, atual, canal) {
+  const nums = new Set([atual]);
+  produtores.filter((p) => p.channel === canal).forEach((p) => nums.add(p.phone));
+  if (canal === "whatsapp") ["+5565999990001", "+5565999990002"].forEach((n) => nums.add(n));
+  else ["+5500900000003", "+5500900002222"].forEach((n) => nums.add(n));
+  const nomes = Object.fromEntries(produtores.map((p) => [p.phone, (p.name ? p.name + " · " : "") + p.state.toLowerCase()]));
+  sel.replaceChildren(...[...nums].map((n) => { const o = document.createElement("option"); o.value = n; o.textContent = n + (nomes[n] ? " (" + nomes[n] + ")" : ""); o.selected = n === atual; return o; }));
+}
+$("#wa-num").onchange = (e) => { waNum = e.target.value; salvarSessao(); desenharWa(); };
+$("#sms-num").onchange = (e) => { smsNum = e.target.value; salvarSessao(); desenharSms(); };
+$("#wa-novo").onclick = () => { const n = prompt("Número com DDI e DDD (ex.: +55 65 99999-0003):"); if (n) { waNum = norm(n); opcoes($("#wa-num"), waNum, "whatsapp"); desenharWa(); } };
+$("#sms-novo").onclick = () => { const n = prompt("Número (ex.: +5500900002222):"); if (n) { smsNum = norm(n); opcoes($("#sms-num"), smsNum, "sms"); desenharSms(); } };
+
+// ---------- o que o BALK enviou (provedor de demonstração) chega nos celulares
+const FIN = { code: "código", invite: "convite" };
+function itemFeed(m) {
+  const f = $("#feed"); if (f.querySelector("p.hint")) f.replaceChildren();
+  const d = document.createElement("div"); d.className = "item";
+  const fin = m.finalidade ? `<span class="tag cod">${esc(FIN[m.finalidade] || m.finalidade)}</span> ` : "";
+  d.innerHTML = `<div class="t"><span>${esc(hora(m.em))} · para ${esc(m.to)}</span><span>${fin}<span class="tag ${m.canal === "sms" ? "sms" : "wa"}">${m.canal === "sms" ? "SMS" : "WhatsApp"}</span></span></div><pre></pre>`;
+  d.querySelector("pre").textContent = m.text;
+  d.onclick = () => { if (m.canal === "sms") { smsNum = m.to; opcoes($("#sms-num"), smsNum, "sms"); desenharSms(); } else { waNum = m.to; opcoes($("#wa-num"), waNum, "whatsapp"); desenharWa(); } };
+  d.style.cursor = "pointer";
+  f.prepend(d);
+}
+async function puxar() {
+  try {
+    const itens = await api(`/outbox?depois=${ultimoSeq}&limite=500`);
+    for (const m of itens) {
+      ultimoSeq = Math.max(ultimoSeq, m.seq || 0);
+      guardar(m.to, { eu: false, texto: m.text, hora: hora(m.em), canal: m.canal === "sms" ? "sms" : "whatsapp" });
+      if (m.media_url && m.canal !== "sms") guardar(m.to, { eu: false, texto: "", media: m.media_url, hora: hora(m.em), canal: "whatsapp" });
+      itemFeed(m);
+    }
+    if (itens.length) carregarEstado();
+  } catch (e) { /* servidor reiniciando: tenta de novo no próximo ciclo */ }
+}
+
+// ---------- operação
+async function carregarEstado() {
+  const est = await api("/demo/estado"); produtores = est.produtores;
+  $("#modo").textContent = "dados: " + est.data_mode + " · motor: " + est.engine;
+  const tb = $("#prod tbody"); tb.replaceChildren();
+  for (const p of produtores) {
+    const tr = document.createElement("tr"); tr.className = "cl";
+    const tal = p.talhoes.length ? p.talhoes.map((t) => `${t.nome} (${t.area_ha.toFixed(1)} ha)`).join(", ") : (p.precision === "municipio" ? "município" : "ponto");
+    [p.phone, p.channel === "sms" ? "SMS" : "WhatsApp", p.state, p.crop || "—", tal].forEach((v) => { const td = document.createElement("td"); td.textContent = v; tr.append(td); });
+    tr.onclick = () => { if (p.channel === "sms") { smsNum = p.phone; desenharSms(); } else { waNum = p.phone; desenharWa(); } opcoes($("#wa-num"), waNum, "whatsapp"); opcoes($("#sms-num"), smsNum, "sms"); };
+    tb.append(tr);
+  }
+  if (!produtores.length) tb.innerHTML = '<tr><td colspan="5" class="hint">Ninguém ainda. Converse pelo WhatsApp, use o site ou importe o CSV.</td></tr>';
+  const mt = est.metricas || {};
+  $("#metricas").replaceChildren(...[["Produtores ativos", mt.produtores_ativos], ["Talhões", mt.talhoes], ["Avisos enviados", mt.avisos_enviados],
+    ["Responderam 1", mt.respostas_vou_fazer], ["Pediram agrônomo", mt.pedidos_de_agronomo], ["Taxa de resposta", mt.taxa_de_resposta_pct == null ? "—" : mt.taxa_de_resposta_pct + "%"],
+    ["Falhas de entrega", mt.mensagens_com_falha]].map(([k, v]) => { const s = document.createElement("span"); s.className = "item"; s.innerHTML = `<b>${esc(v == null ? 0 : v)}</b> <small>${esc(k)}</small>`; return s; }));
+  const ped = est.pedidos_agronomo || [];
+  $("#pedidos").replaceChildren(...(ped.length ? ped.map((e) => { const d = document.createElement("div"); d.className = "item";
+    d.innerHTML = `<div class="t"><span>${esc(e.created_at.slice(11, 16))} · ${esc(e.phone)}</span><span class="tag cod">agrônomo</span></div>${formatar(e.note || "")}`; return d; })
+    : [Object.assign(document.createElement("p"), { className: "hint", textContent: "Nenhum pedido de agrônomo." })]));
+  opcoes($("#wa-num"), waNum, "whatsapp"); opcoes($("#sms-num"), smsNum, "sms");
+  const coop = produtores.filter((p) => p.source === "coop_demo");
+  $("#lg-prod").replaceChildren(...(coop.length ? coop : produtores).map((p) => { const o = document.createElement("option"); o.value = p.id; o.textContent = `${p.phone} · ${p.crop || "?"}`; return o; }));
+  await loadForecast();
+}
 async function loadForecast() {
   const f = await api("/cooperative/coop_demo/forecast");
-  $("#forecast tbody").innerHTML = f.dias.map(d => `<tr><td>${d.data.slice(5).split("-").reverse().join("/")}</td><td>${d.toneladas}</td><td>${d.caminhoes}</td><td>${d.produtores}</td></tr>`).join("");
-}
-async function loadProducers() {
-  const ps = (await api("/producers")).filter(p => p.source === "coop_demo");
-  $("#lg-prod").innerHTML = ps.map(p => `<option value="${p.id}">${p.phone} · ${p.crop || "?"}</option>`).join("") || "<option value=''>(importe o CSV)</option>";
+  $("#forecast tbody").innerHTML = f.dias.map((d) => `<tr><td>${d.data.slice(5).split("-").reverse().join("/")}</td><td>${d.toneladas}</td><td>${d.caminhoes}</td><td>${d.produtores}</td></tr>`).join("")
+    + (f.aguardando_janela && f.aguardando_janela.length ? `<tr><td colspan="4" class="hint">Prontas, aguardando tempo seco: ${f.aguardando_janela.length} produtor(es), cerca de ${f.aguardando_toneladas} t.</td></tr>` : "");
 }
 $("#csv").onclick = async () => {
+  $("#op-msg").textContent = "Importando e analisando…";
   const txt = await (await fetch("/demo/coop.csv")).text();
-  const r = await api("/ingest/producers", { method:"POST", headers:{ "content-type":"text/csv" }, body:txt });
-  r.relatorios.forEach(x => x.messages.filter(m => m.kind === "report").forEach(m =>
-    feedCard({ phone:x.phone, channel:x.channel, label:"relatório de viabilidade", text:m.text, media_url:m.media_url })));
-  await loadForecast(); await loadProducers();
+  const r = await api("/ingest/producers", { method: "POST", headers: { "content-type": "text/csv" }, body: txt });
+  // em produção o n8n envia estes relatórios; aqui eles chegam direto no celular de cada produtor
+  r.relatorios.forEach((x) => x.messages.filter((m) => m.kind === "report").forEach((m) => {
+    guardar(x.phone, { eu: false, texto: m.text, hora: agora(), canal: x.channel });
+    if (m.media_url && x.channel !== "sms") guardar(x.phone, { eu: false, texto: "", media: m.media_url, hora: agora(), canal: "whatsapp" });
+  }));
+  $("#op-msg").textContent = `${r.aceitos} produtores aceitos, ${r.erros.length} com erro, ${r.relatorios.length} relatórios gerados, ${r.convites_enviados} convites de aceite.`;
+  await carregarEstado();
 };
 $("#daily").onclick = async () => {
-  const r = await post("/simulate/daily?hora=10");
-  if (!r.enviados.length) feedCard({ phone:"—", channel:"whatsapp", label:"silêncio", text:"Nenhum alerta novo: o silêncio evitou repetição." });
-  r.enviados.forEach(e => feedCard({ phone:e.phone, channel:e.channel, label:"alerta · " + e.type + " · confiança " + e.confidence, text:e.text }));
+  $("#op-msg").textContent = "Rodando a análise do dia…";
+  const r = await post(`/simulate/daily?hora=${$("#hora").value}`);
+  $("#op-msg").textContent = r.enviados.length ? `${r.enviados.length} alerta(s) enviados: ` + r.enviados.map((e) => `${e.type} para ${e.phone}${e.plot_id ? " (talhão " + e.plot_id + ")" : ""}`).join("; ")
+    : "Nenhum alerta novo: nenhuma regra disparou ou o silêncio segurou (72 h por tipo e por talhão, 2 por dia e por semana, horário quieto).";
+  puxar();
 };
 $("#lg-go").onclick = async () => {
   const pid = +$("#lg-prod").value; if (!pid) return;
-  const p = await post("/logistics/plan", { producer_id:pid, destination_id:$("#lg-dest").value });
+  const p = await post("/logistics/plan", { producer_id: pid, destination_id: $("#lg-dest").value });
   const o = $("#lg-out"); o.style.display = "block";
-  o.innerHTML = `<pre>${fmt(p.text)}</pre><div class="hint">Rota ${p.rota_fonte} · ${p.pontos_amostrados} pontos amostrados · ${p.premissas}</div>`;
+  o.innerHTML = `<pre></pre><div class="hint">Rota ${esc(p.rota_fonte)} · ${esc(p.pontos_amostrados)} pontos de clima na rota · ${esc(p.premissas)}</div><button class="btn sec" type="button">Enviar ao produtor</button>`;
+  o.querySelector("pre").textContent = p.text;
+  const prod = produtores.find((x) => x.id === pid);
+  o.querySelector("button").onclick = () => { if (prod) guardar(prod.phone, { eu: false, texto: p.text, hora: agora(), canal: prod.channel }); };
 };
-$("#reset").onclick = async () => { await post("/simulate/reset"); location.reload(); };
+$("#reset").onclick = async () => { if (confirm("Apagar todos os dados da demonstração?")) { await post("/simulate/reset"); sessionStorage.removeItem("balk-sim"); location.reload(); } };
 
 (async () => {
-  const h = await api("/health"); $("#modo").textContent = "dados: " + h.data_mode + " · motor: " + h.engine;
-  (await api("/destinos")).forEach(d => $("#lg-dest").insertAdjacentHTML("beforeend", `<option value="${d.id}">${d.nome}</option>`));
-  await loadProducers(); await loadForecast();
-  bubble($("#chat-wa"), "Escreva \"Oi\" para começar.", false);
-  smsLine("Celular simples. Use os botões abaixo.", false);
+  restaurarSessao();
+  setInterval(() => { $("#relogio").textContent = agora(); }, 1000); $("#relogio").textContent = agora();
+  (await api("/destinos")).forEach((d) => { const o = document.createElement("option"); o.value = d.id; o.textContent = d.nome; $("#lg-dest").append(o); });
+  await carregarEstado();
+  desenharWa(); desenharSms();
+  await puxar();
+  setInterval(puxar, 2000);
 })();
 </script>
 </body>

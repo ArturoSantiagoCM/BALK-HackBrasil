@@ -99,7 +99,7 @@ def signup_verify(body: SignupVerify, request: Request, response: Response):
         v = auth.verify_signup(body.phone, body.code)
     except auth.AuthError as e:
         raise HTTPException(e.status, e.message)
-    phone = db.norm_phone(body.phone)
+    phone = auth.site_phone(body.phone)
     if db.get_contact_by_phone(phone) and not db.get_producer_by_phone(phone):
         raise HTTPException(409, "Este número já recebe os avisos de outra pessoa.")
     name = v["name"] or None
@@ -309,15 +309,18 @@ def contact_add(body: ContactIn, s: dict = Session):
     """Convida um segundo contato (sucessor). Ele só recebe depois de responder SIM; nunca altera dados."""
     from app.ingest.conversation import SUCCESSOR_ASKED, _active_reply
     p = _producer(s)
-    digits = "".join(c for c in body.phone if c.isdigit())
-    if len(digits) < 10 or digits == "".join(c for c in p.phone if c.isdigit()):
+    raw = "".join(c for c in body.phone if c.isdigit())
+    if len(raw) < 10:
         raise HTTPException(422, "Não entendi o número. Escreva com DDD, só números.")
-    other = db.get_contact_by_phone(digits)
-    if db.get_producer_by_phone(digits) or (other and other["producer_id"] != p.id):
+    phone = auth.site_phone(raw)  # com o 55, como o WhatsApp manda
+    if phone == p.phone:
+        raise HTTPException(422, "Esse é o seu próprio número. Informe o de outra pessoa.")
+    other = db.get_contact_by_phone(phone)
+    if db.get_producer_by_phone(phone) or (other and other["producer_id"] != p.id):
         return {"ok": True, "mensagem": SUCCESSOR_ASKED}  # resposta igual à de sucesso, sem enviar: não revela quem já usa o BALK
     if not invite_limiter.check(f"p{p.id}"):
         raise HTTPException(429, f"No máximo {INVITES_PER_DAY} convites por dia.")
-    r = _active_reply(p, "sucessor", body.phone)
+    r = _active_reply(p, "sucessor", phone)
     if not r.notify:
         raise HTTPException(422, r.text)
     for phone, text, channel in r.notify:
@@ -327,7 +330,7 @@ def contact_add(body: ContactIn, s: dict = Session):
 
 @api.delete("/contacts/{phone}")
 def contact_remove(phone: str, s: dict = Session):
-    if not db.remove_contact(s["producer_id"], phone):
+    if not db.remove_contact(s["producer_id"], auth.site_phone(phone)):
         raise HTTPException(404, "Contato não encontrado.")
     return {"ok": True}
 

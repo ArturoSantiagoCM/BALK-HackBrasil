@@ -141,19 +141,30 @@ def grant(phone: str, producer_id: Optional[int], origin: str) -> None:
     db.record_consents(phone, producer_id, PURPOSES, config.consent()["versao"], origin)
 
 
+def _last_alert(p: Producer) -> Optional[dict]:
+    m = db.list_messages(p.id, kind="alert", direction="out", limit=1)
+    return m[0] if m else None
+
+
 def _active_reply(p: Producer, t: str, raw: str = "") -> Reply:
-    if t == "1":
-        return Reply(ACK, producer_id=p.id)
-    if t == "2":
-        db.add_escalation(p.id, p.phone, "produtor pediu ajuda (resposta 2)")
+    if t in ("1", "2"):  # retorno do produtor sobre o último aviso: vira registro (métrica) e, no 2, pedido para a equipe
+        last = _last_alert(p)
+        nome = {"pulverizacao": "pulverização", "estresse": "estresse da lavoura"}.get(last["type"], last["type"]) if last else ""
+        sobre = f"{nome} de {last['created_at'][:16].replace('T', ' ')}" if last else "sem aviso recente"
+        db.log_message(p.id, p.phone, "in", p.channel, "resposta", f"{t} ({sobre})", type_=last["type"] if last else None,
+                       report_token=last.get("report_token") if last else None, state="received")
+        if t == "1":
+            return Reply(ACK, producer_id=p.id)
+        link = f" Relatório: {config.public_base_url()}/r/{last['report_token']}" if last and last.get("report_token") else ""
+        db.add_escalation(p.id, p.phone, f"pediu um agrônomo sobre o aviso de {sobre}.{link}")
         return Reply(HELP_ESCALATE, producer_id=p.id)
     if t.startswith("historico"):
         return Reply(f"{HIST_LABEL}: {_history_link(p.id)}", producer_id=p.id)
     if t.startswith("sucessor"):  # "SUCESSOR 5565999990000": convida o segundo contato (ele precisa aceitar por conta própria)
         digits = "".join(c for c in raw if c.isdigit())
-        if len(digits) < 10 or digits == "".join(c for c in p.phone if c.isdigit()):
+        phone = db.typed_phone(digits)  # número digitado: ganha o 55 se veio só com DDD
+        if len(digits) < 10 or phone == db.norm_phone(p.phone):
             return Reply(SUCCESSOR_BAD, producer_id=p.id)
-        phone = db.norm_phone(digits)
         if db.get_producer_by_phone(phone):
             return Reply("Esse número já tem cadastro próprio no BALK.", producer_id=p.id)
         db.add_contact(p.id, phone)

@@ -36,7 +36,7 @@ def _work_key(pid: int, plot: Optional[dict]) -> Optional[str]:
 
 
 def _make_report(p, now, weather, stats, ranking, climate, alerts, relations_, messages, prerender_images: bool,
-                 plot: Optional[dict] = None) -> tuple[str, str]:
+                 plot: Optional[dict] = None, extras: Optional[dict] = None) -> tuple[str, str]:
     """Guarda o relatório detalhado (dados + a conta de cada conclusão) e devolve (link pessoal, token)."""
     meta = {}
     polygon = plot["geojson"] if plot else None
@@ -45,7 +45,7 @@ def _make_report(p, now, weather, stats, ranking, climate, alerts, relations_, m
         mf = build_local_package(p, polygon=polygon, key=key) / "meta.json"
         if mf.exists():
             meta = json.loads(mf.read_text(encoding="utf-8"))
-    data = report.build(p, now, weather, stats, ranking, climate, alerts, relations_, messages, meta)
+    data = report.build(p, now, weather, stats, ranking, climate, alerts, relations_, messages, meta, extras)
     data["chuva_mes_mm"] = mean_monthly_rain(climate)
     if plot:  # relatório do talhão desenhado: o mapa e as contas valem para ele, não para o círculo de 7 ha
         data["poligono"] = polygon
@@ -117,6 +117,8 @@ def _analyze_unit(p, plot: Optional[dict], full: bool, now: datetime, multi: boo
             age = (now.date() - datetime.fromisoformat(stats.scene_date).date()).days
             if age > sat.get("descartar_apos_dias", 60):
                 stats, sem_imagem = None, True  # velha demais: não se apresenta como atual
+        if stats is not None and stats.valid_fraction is not None and stats.valid_fraction < sat.get("util_minimo", 0.1):
+            stats, sem_imagem = None, True  # nuvem cobrindo o talhão: sem dado de vegetação, não se finge análise
         if plot:  # safra do talhão e histórico de NDVI (a referência vem ANTES de gravar a cena de hoje)
             season = db_site.ensure_season(p.id, plot_id, p.crop, p.planting_date)
             if stats is not None:
@@ -142,13 +144,16 @@ def _analyze_unit(p, plot: Optional[dict], full: bool, now: datetime, multi: boo
         rep = Report(ranking=ranking, stats=stats, crop_pref=p.crop, map_url=None, only_weather=stats is None,
                      relations=relations_, sem_imagem=sem_imagem, plot_name=label)
         messages.append({"kind": "report", "type": "relatorio", "text": render(rep, p.channel, p.lang),
-                         "sms_text": render(rep, "sms", p.lang), "media_url": None, "confidence": None, "evidence": None})
+                         "sms_text": render(rep, "sms", p.lang), "media_url": None, "confidence": None, "evidence": None,
+                         "so_clima": stats is None and not sem_imagem})  # cadastro por município: o texto de boas-vindas já explica
     for a in alerts:
         messages.append({"kind": "alert", "type": a.type, "text": render(a, p.channel, p.lang, use_ai=_use_ai(), plot=label),
                          "sms_text": render(a, "sms", p.lang, plot=label), "confidence": a.confidence, "evidence": a.evidence})
     report_url, token = None, None
     if messages:  # há algo a enviar: guarda o relatório detalhado e põe o link depois de cada mensagem
-        report_url, token = _make_report(p, now, weather, stats, ranking, climate, alerts, relations_, messages, full, plot)
+        safras = [s for s in db_site.seasons_overview(p.id) if s["plot_id"] == plot_id] if plot else []
+        report_url, token = _make_report(p, now, weather, stats, ranking, climate, alerts, relations_, messages, full, plot,
+                                         extras={"referencia_vigor": hist, "safras": safras})
         for m in messages:
             m["text"] = with_link(m["text"], p.channel, p.lang, report_url)
             m["report_token"], m["plot_id"], m["plot_name"] = token, plot_id, plot_name

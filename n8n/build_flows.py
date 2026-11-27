@@ -71,43 +71,37 @@ def send_nodes(x, y):
 
 
 def wf1():
+    # A resposta da conversa E, quando o cadastro fecha, o primeiro relatório de cada talhão (com o link). Os convites ao
+    # segundo contato o BALK já entrega sozinho (com o template de convite), então não passam por aqui.
+    code = ("const r = $json; const w = $('Webhook do canal').item.json.body; const out = [];\n"
+            "out.push({json: {phone: w.phone, channel: w.channel, text: r.reply}});\n"
+            "(r.messages || []).filter(m => m.kind === 'report').forEach(m => out.push({json: {phone: w.phone, channel: w.channel, text: m.text}}));\n"
+            "return out;")
     n = [node("Webhook do canal", "webhook", {"httpMethod": "POST", "path": "balk-entrada", "responseMode": "lastNode"},
               [0, 0], 2),
          http("POST /conversation", "POST", "/conversation", [260, 0],
               '={"phone": "{{$json.body.phone}}", "text": "{{$json.body.text}}", "channel": "{{$json.body.channel}}"}'),
-         node("Texto da resposta", "set", {"assignments": {"assignments": [
-             {"name": "phone", "value": "={{$('Webhook do canal').item.json.body.phone}}", "type": "string"},
-             {"name": "channel", "value": "={{$('Webhook do canal').item.json.body.channel}}", "type": "string"},
-             {"name": "text", "value": "={{$json.reply}}", "type": "string"}]}}, [520, 0], 3.4),
+         node("Resposta e relatórios", "code", {"jsCode": code}, [520, 0], 2),
          *send_nodes(780, 0), erro([260, 200])]
-    c = wire(("Webhook do canal", "POST /conversation", 0), ("POST /conversation", "Texto da resposta", 0),
-             ("POST /conversation", "Avisar equipe (erro)", 1), ("Texto da resposta", "Canal", 0),
+    c = wire(("Webhook do canal", "POST /conversation", 0), ("POST /conversation", "Resposta e relatórios", 0),
+             ("POST /conversation", "Avisar equipe (erro)", 1), ("Resposta e relatórios", "Canal", 0),
              ("Canal", "Enviar WhatsApp (Meta Cloud API)", 0), ("Canal", "Enviar SMS (Twilio)", 1))
     return flow("BALK WF1 Entrada (cadastro por conversa)", n, c)
 
 
 def wf2():
-    code = ("const r = $json; const out = [];\n"
-            "const alerts = r.messages.filter(m => m.kind === 'alert');\n"
-            "alerts.forEach(m => out.push({json: {producer_id: r.producer_id, phone: r.phone, channel: r.channel, type: m.type, text: m.text}}));\n"
-            "return out;")
+    # O ciclo diário inteiro roda no BALK (POST /jobs/daily): análise de cada talhão, silêncio por talhão e por contato,
+    # envio com template, repetição e reserva por SMS, registro e cópia ao segundo contato. O n8n só agenda e avisa a equipe
+    # se algum produtor ficou de fora (clima fora do ar etc.).
     n = [node("Todo dia 06:05", "scheduleTrigger", {"rule": {"interval": [{"field": "cronExpression", "expression": "5 6 * * *"}]}},
               [0, 0], 1.2),
-         http("GET /producers/active", "GET", "/producers/active", [240, 0]),
-         node("Um produtor por vez", "splitInBatches", {"batchSize": 1}, [480, 0], 3),
-         http("POST /analyze/{id}", "POST", "/analyze/{{$json.id}}", [720, 0]),
-         node("Alertas da análise", "code", {"jsCode": code}, [960, 0], 2),
-         *send_nodes(1200, 0),
-         http("POST /alerts/log", "POST", "/alerts/log", [1700, 0],
-              '={"producer_id": {{$("Alertas da análise").item.json.producer_id}}, "type": "{{$("Alertas da análise").item.json.type}}"}'),
-         erro([720, 200])]
-    n[3]["parameters"]["url"] = f"={API}/analyze/{{{{$json.id}}}}"
-    c = wire(("Todo dia 06:05", "GET /producers/active", 0), ("GET /producers/active", "Um produtor por vez", 0),
-             ("Um produtor por vez", "POST /analyze/{id}", 1), ("POST /analyze/{id}", "Alertas da análise", 0),
-             ("POST /analyze/{id}", "Avisar equipe (erro)", 1), ("Alertas da análise", "Canal", 0),
-             ("Canal", "Enviar WhatsApp (Meta Cloud API)", 0), ("Canal", "Enviar SMS (Twilio)", 1),
-             ("Enviar WhatsApp (Meta Cloud API)", "POST /alerts/log", 0), ("Enviar SMS (Twilio)", "POST /alerts/log", 0),
-             ("POST /alerts/log", "Um produtor por vez", 0))
+         http("POST /jobs/daily", "POST", "/jobs/daily", [260, 0]),
+         node("Houve erro?", "if", {"conditions": {"conditions": [{"leftValue": "={{$json.erros.length}}", "rightValue": 0,
+                                                                   "operator": {"type": "number", "operation": "gt"}}]}}, [520, 0], 2),
+         http("POST /jobs/purge", "POST", "/jobs/purge", [780, 120]),
+         erro([780, -120])]
+    c = wire(("Todo dia 06:05", "POST /jobs/daily", 0), ("POST /jobs/daily", "Houve erro?", 0), ("POST /jobs/daily", "Avisar equipe (erro)", 1),
+             ("Houve erro?", "Avisar equipe (erro)", 0), ("Houve erro?", "POST /jobs/purge", 1))
     return flow("BALK WF2 Diário (alertas do dia)", n, c)
 
 
@@ -118,7 +112,7 @@ def wf3():
          node("Texto do relatório", "set", {"assignments": {"assignments": [
              {"name": "phone", "value": "={{$json.phone}}", "type": "string"},
              {"name": "channel", "value": "={{$json.channel}}", "type": "string"},
-             {"name": "text", "value": "={{$json.messages[0].text}}", "type": "string"}]}}, [780, 0], 3.4),
+             {"name": "text", "value": "={{$json.messages.filter(m => m.kind === 'report').map(m => m.text).join('\\n\\n')}}", "type": "string"}]}}, [780, 0], 3.4),
          *send_nodes(1040, 0), erro([260, 200])]
     c = wire(("Webhook /ingest", "POST /ingest/producers", 0), ("POST /ingest/producers", "Um relatório por produtor", 0),
              ("POST /ingest/producers", "Avisar equipe (erro)", 1), ("Um relatório por produtor", "Texto do relatório", 0),

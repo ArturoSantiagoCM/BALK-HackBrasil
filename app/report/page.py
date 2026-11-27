@@ -9,7 +9,8 @@ CSS = """
 :root{--v:#0b6e4f;--v2:#075e54;--c:#667;--b:#dfe5e1}
 *{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,Segoe UI,Roboto,sans-serif;background:#f4f6f4;color:#1c1c1c}
 header{background:var(--v2);color:#fff;padding:16px 18px}header h1{margin:0;font-size:21px}header p{margin:4px 0 0;opacity:.9;font-size:14px}
-main{max-width:920px;margin:auto;padding:12px}section{background:#fff;border-radius:14px;box-shadow:0 1px 4px #0002;padding:16px;margin:12px 0}
+main{max-width:1100px;margin:auto;padding:12px}.indice{background:#fff;border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.9;box-shadow:0 1px 4px #0002}
+code{font-size:12px;background:#f1f4f2;padding:1px 4px;border-radius:4px}section{background:#fff;border-radius:14px;box-shadow:0 1px 4px #0002;padding:16px;margin:12px 0}
 h2{margin:0 0 8px;font-size:18px;color:var(--v2)}h3{margin:14px 0 6px;font-size:15px}p{margin:6px 0}
 .aviso{background:#fff3e0;border-left:5px solid #ef6c00;padding:10px 12px;border-radius:8px;font-size:15px;margin:10px 0}
 .sim{background:#ffebee;border-left-color:#c62828;font-weight:600}
@@ -72,9 +73,10 @@ def _crop_block(c: dict) -> str:
         src = _link(r["fonte_url"], r["fonte_titulo"]) if r["fonte_url"] else esc(r["fonte_titulo"])
         rows.append(f'<tr><td>{esc(r["nome"])}</td><td>{val}</td><td>{esc(ideal)}</td><td>{esc(tol)}</td><td>{nota}</td>'
                     f'<td>{r["peso"]:g}</td><td>{_chip(r["status"], r["status_txt"])}<br><span class="small">{src}</span></td></tr>')
+    from app.message.templates import CROPS
     teto = "<p class=\"small\">Algum fator zerou, então a nota máxima desta cultura é 40.</p>" if c["teto_40"] else ""
     tag = " (a sua cultura)" if c["informada"] else ""
-    return (f'<div class="card"><h3>{esc(c["crop"].capitalize())}{tag}: nota {c["nota"]}/100, confiança {esc(c["confianca"])}</h3>'
+    return (f'<div class="card"><h3>{esc(CROPS["pt"].get(c["crop"], c["crop"]).capitalize())}{tag}: nota {c["nota"]}/100, confiança {esc(c["confianca"])}</h3>'
             f'<p><b>Fator que mais limita:</b> {esc(c["limitante_nome"])}. {esc(c["orientacao"])}</p>'
             f'<div class="tw"><table><tr><th>Fator</th><th>Sua área</th><th>Ideal</th><th>Tolerado</th><th>Nota (0-1)</th><th>Peso</th>'
             f'<th>Fonte da faixa</th></tr>{"".join(rows)}</table></div>{teto}'
@@ -129,6 +131,91 @@ def _relations_block(r: dict) -> str:
     return f'<ul>{"".join(items)}</ul>{zonas}'
 
 
+STAT_LABELS = [  # (campo, rótulo, unidade, casas)
+    ("area_ha", "Área analisada", "ha", 2), ("scene_date", "Data da cena", "", None), ("valid_fraction", "Pixels úteis (sem nuvem)", "fração", 2),
+    ("ndvi_mean", "NDVI médio", "", 3), ("ndvi_median", "NDVI mediano", "", 3), ("ndvi_std", "NDVI desvio", "", 3),
+    ("ndvi_p10", "NDVI percentil 10", "", 3), ("ndvi_p90", "NDVI percentil 90", "", 3), ("ndvi_ref_mean", "NDVI da vizinhança (média)", "", 3),
+    ("ndvi_ref_std", "NDVI da vizinhança (desvio)", "", 3), ("ndmi_mean", "NDMI médio (umidade)", "", 3), ("ndre_mean", "NDRE médio (clorofila)", "", 3),
+    ("moisture_class", "Classe de umidade", "", None), ("elevation_m", "Elevação", "m", 0), ("slope_mean_pct", "Declividade média", "%", 1),
+    ("slope_max_pct", "Declividade máxima", "%", 1), ("aspect_label", "Encosta voltada para", "", None), ("tpi_min", "TPI mínimo (baixada)", "m", 1),
+    ("tpi_max", "TPI máximo (topo)", "m", 1), ("frost_relief_offset_c", "Ajuste de geada pelo relevo", "°C", 1), ("weak_area_pct", "Área fraca", "%", 1),
+    ("weak_area_dir", "Direção da área fraca", "", None), ("erosion_index", "Índice de erosão", "0-1", 3), ("erosion_class", "Classe de erosão", "", None),
+    ("clay_pct", "Argila (0-5 cm, estimada)", "%", 0), ("ph", "pH (estimado)", "", 1), ("engine", "Motor de cálculo", "", None),
+]
+
+
+def _stats_block(s: dict) -> str:
+    rows = []
+    for k, lbl, unit, nd in STAT_LABELS:
+        if k not in s or s[k] is None:
+            continue
+        v = s[k]
+        val = f"{v:.{nd}f}" if isinstance(v, (int, float)) and nd is not None and not isinstance(v, bool) else str(v)
+        rows.append(f"<tr><td>{esc(lbl)}</td><td>{esc(val)}</td><td>{esc(unit)}</td><td><code>{esc(k)}</code></td></tr>")
+    return ('<div class="tw"><table><tr><th>Medida</th><th>Valor</th><th>Unidade</th><th>Campo no arquivo de dados</th></tr>'
+            + "".join(rows) + "</table></div>")
+
+
+def _hours_block(hrs: list[dict]) -> str:
+    if not hrs:
+        return ""
+    def yes(b):
+        return '<span class="ok">sim</span>' if b else '<span class="small">não</span>'
+    trs = "".join(f'<tr><td>{esc(_fmt_dt(h["hora"]))}</td><td>{h["temp_c"]:.1f}</td><td>{h["ur_pct"]:.0f}</td><td>{h["vento_kmh"]:.1f}</td>'
+                  f'<td>{h["chuva_prob_pct"]:.0f}</td><td>{h["chuva_mm"]:.1f}</td><td>{"" if h["et0_mm"] is None else f"{h["et0_mm"]:.2f}"}</td>'
+                  f'<td>{h["delta_t"]:.1f}</td><td>{yes(h["serve_pulverizar"])}</td><td>{"<span class=nok>sim</span>" if h["geada"] else "não"}</td></tr>'
+                  for h in hrs)
+    ok = sum(1 for h in hrs if h["serve_pulverizar"])
+    return (f'<p>{len(hrs)} horas de previsão; {ok} horas atendem a todos os critérios de pulverização; '
+            f'{sum(1 for h in hrs if h["geada"])} horas abaixo do limite de geada.</p>'
+            '<details><summary>Ver a tabela hora a hora</summary><div class="tw"><table><tr><th>Hora</th><th>°C</th><th>UR %</th><th>Vento km/h</th>'
+            '<th>Chuva %</th><th>Chuva mm</th><th>ET0 mm</th><th>Delta T</th><th>Serve p/ pulverizar</th><th>Geada</th></tr>'
+            + trs + "</table></div></details>")
+
+
+MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+
+
+def _monthly_block(m: Optional[dict], fonte: Optional[str]) -> str:
+    if not m:
+        return ""
+    keys = sorted(m, key=lambda k: int(k))
+    trs = "".join(f'<tr><td>{MESES[int(k) - 1]}</td><td>{m[k].get("temp", 0):.1f}</td><td>{m[k].get("rain", 0):.0f}</td>'
+                  f'<td>{"" if m[k].get("frost_days") is None else f"{m[k]["frost_days"]:.1f}"}</td></tr>' for k in keys)
+    return (f'<p class="small">Fonte: {esc("simulado (demonstração)" if fonte == "simulado" else "Open-Meteo Archive (ERA5), 5 anos")}. '
+            'Base da nota de viabilidade (temperatura, chuva e geadas do ciclo).</p>'
+            '<div class="tw"><table><tr><th>Mês</th><th>Temperatura média °C</th><th>Chuva média mm</th><th>Dias de geada/ano</th></tr>'
+            + trs + "</table></div>")
+
+
+def _history_block(h: dict) -> str:
+    ref, safras = h.get("referencia_vigor"), h.get("safras") or []
+    parts = []
+    if ref:
+        nome = {"historico": "safras anteriores do mesmo talhão e cultura", "serie_recente": "série recente desta safra"}.get(ref.get("referencia"), ref.get("referencia"))
+        parts.append(f'<p><b>Referência de vigor usada:</b> {esc(nome)}: média {ref["mean"]:.3f}, desvio {ref["std"]:.3f}, {ref["n"]} observações.</p>')
+    else:
+        parts.append('<p><b>Referência de vigor usada:</b> sem histórico suficiente do talhão (precisa de 3 observações de safras anteriores na mesma fase, '
+                     'ou 4 da safra atual): a referência é a vizinhança da cena, com confiança baixa.</p>')
+    if safras:
+        trs = "".join(f'<tr><td>{esc(s["crop"])}</td><td>{esc(s["start_date"] or "")}</td><td>{esc(s["end_date"] or "em andamento")}</td>'
+                      f'<td>{s["n_observacoes"]}</td><td>{"" if s["ndvi_pico"] is None else s["ndvi_pico"]}</td><td>{esc(s["data_pico"] or "")}</td>'
+                      f'<td>{"" if s["ndvi_medio"] is None else s["ndvi_medio"]}</td><td>{"" if s["yield_t_ha"] is None else s["yield_t_ha"]}</td></tr>' for s in safras)
+        parts.append('<div class="tw"><table><tr><th>Cultura</th><th>Plantio</th><th>Fim</th><th>Observações</th><th>NDVI pico</th><th>Data do pico</th>'
+                     f'<th>NDVI médio</th><th>Produtividade t/ha</th></tr>{trs}</table></div>')
+        serie = [(d, v) for s in safras for d, v in s.get("serie", [])]
+        if serie:
+            parts.append('<details><summary>Ver todas as observações (data, NDVI)</summary><p class="small">'
+                         + ", ".join(f"{esc(d)}: {v:.3f}" for d, v in serie) + "</p></details>")
+    return "".join(parts)
+
+
+def _method_block(ms: list[dict], versao: str) -> str:
+    rows = "".join(f'<tr><td><b>{esc(m["nome"])}</b></td><td><code>{esc(m["formula"])}</code></td><td>{esc(m["parametros"])}</td></tr>' for m in ms)
+    return (f'<p class="small">Versão das regras: {esc(str(versao))}. Os números abaixo são lidos dos mesmos arquivos que o programa usa (rules.yaml e crops.yaml).</p>'
+            f'<div class="tw"><table><tr><th>Etapa</th><th>Fórmula</th><th>Parâmetros em uso</th></tr>{rows}</table></div>')
+
+
 def render_history(items: list[dict], base_url: str) -> str:
     """Linha do tempo dos avisos (mais novo primeiro), só leitura. Cada item liga ao relatório detalhado, se ainda valer."""
     nomes = {"pulverizacao": "Pulverização", "geada": "Geada", "estresse": "Estresse da lavoura", "colheita": "Colheita"}
@@ -166,36 +253,64 @@ def render_page(d: dict, img_dir: Optional[Path] = None, img_base: str = "img", 
         parts.append('<div class="aviso">Seu cadastro é por município (centro da cidade, não a lavoura): por isso só há análise de clima. '
                      "Envie o pin de localização da lavoura para receber mapas e a nota de viabilidade.</div>")
 
+    secoes = []  # (id, título, html): numeradas na ordem e listadas no índice
+
+    def sec(sid: str, titulo: str, html: str) -> None:
+        if html:
+            secoes.append((sid, titulo, html))
+
     msgs = "".join(f'<div class="msg">{esc(m["texto"])}</div>' for m in d["mensagens"])
-    parts.append(f"<section><h2>1. O que enviamos a você</h2>{msgs}<p class=\"small\">As seções abaixo mostram os dados e as contas por trás destas mensagens.</p></section>")
+    sec("mensagens", "O que enviamos ao produtor", f'{msgs}<p class="small">A mensagem é curta de propósito. As seções abaixo mostram os dados e as contas por trás dela.</p>')
+    if d.get("conclusoes"):
+        sec("conclusoes", "Conclusões (resumo para o técnico)", "<ul>" + "".join(f"<li>{esc(c)}</li>" for c in d["conclusoes"]) + "</ul>")
 
     rows = "".join(f'<tr><td>{esc(r["camada"])}</td><td>{esc(r["fonte"])}</td><td>{esc(r["data"] or "")}</td><td>{esc(r["resolucao"])}</td>'
                    f'<td>{esc(r["valor"])}<br><span class="small">{esc(r["nota"])}</span></td></tr>' for r in d["dados"])
-    parts.append(f'<section><h2>2. Os dados que coletamos</h2><div class="tw"><table><tr><th>Camada</th><th>Fonte</th><th>Data</th><th>Resolução</th>'
-                 f'<th>O que mostrou na sua área</th></tr>{rows}</table></div></section>')
+    sec("dados", "Os dados que coletamos", f'<div class="tw"><table><tr><th>Camada</th><th>Fonte</th><th>Data</th><th>Resolução</th>'
+                                          f'<th>O que mostrou na sua área</th></tr>{rows}</table></div>')
+    if d.get("estatisticas"):
+        sec("estatisticas", "Estatísticas completas da área", _stats_block(d["estatisticas"]))
 
     imgs = {i["arquivo"][:-4]: i for i in d.get("imagens", [])}
     maps = [imgs[k] for k in ("ndvi", "ndmi", "slope", "tpi", "zonas", "anomalia", "erosao") if k in imgs]
     if maps:
-        parts.append("<section><h2>3. Mapas da sua área</h2><p class=\"small\">Cada mapa mostra uma camada, no estilo de um projeto de SIG: "
-                     "contorno tracejado = área analisada, barra de escala, norte e legenda.</p>"
-                     + "".join(_figure(i, img_dir, img_base, inline) for i in maps) + "</section>")
+        sec("mapas", "Mapas da área", "<p class=\"small\">Cada mapa mostra uma camada, no estilo de um projeto de SIG: "
+                                      "contorno tracejado = área analisada, barra de escala, norte e legenda.</p>"
+                                      + "".join(_figure(i, img_dir, img_base, inline) for i in maps))
     if d["culturas"]:
         body = "".join(_crop_block(c) for c in d["culturas"])
         fig = _figure(imgs["fatores"], img_dir, img_base, inline) if "fatores" in imgs else ""
-        parts.append(f"<section><h2>4. Por que estas notas</h2>{fig}{body}</section>")
+        sec("notas", "Por que estas notas", f"{fig}{body}")
     if d["relacoes"]:
-        parts.append(f'<section><h2>5. Como as camadas se combinam</h2>{_relations_block(d["relacoes"])}</section>')
+        sec("relacoes", "Como as camadas se combinam", _relations_block(d["relacoes"]))
+    fig = _figure(imgs["clima"], img_dir, img_base, inline) if "clima" in imgs else ""
     if d["alertas"]:
-        fig = _figure(imgs["clima"], img_dir, img_base, inline) if "clima" in imgs else ""
-        parts.append(f'<section id="alertas"><h2>6. Alertas e por que foram enviados</h2>{fig}{"".join(_alert_block(a) for a in d["alertas"])}</section>')
-    elif "clima" in imgs:
-        parts.append(f'<section id="alertas"><h2>6. Clima das próximas 72 horas</h2>{_figure(imgs["clima"], img_dir, img_base, inline)}'
-                     "<p>Nenhum alerta novo agora: o BALK só avisa quando há uma decisão a tomar.</p></section>")
+        sec("alertas", "Alertas e por que foram enviados", fig + "".join(_alert_block(a) for a in d["alertas"]))
+    elif fig:
+        sec("alertas", "Clima das próximas 72 horas", fig + "<p>Nenhum alerta novo agora: o BALK só avisa quando há uma decisão a tomar.</p>")
+    sec("horas", "Clima hora a hora (com as contas das regras)", _hours_block(d.get("clima_horas") or []))
+    sec("mensal", "Clima histórico por mês", _monthly_block(d.get("clima_mensal"), d.get("clima_mensal_fonte")))
+    if d.get("historico") and (d["historico"].get("safras") or d.get("estatisticas")):
+        sec("historico", "Histórico do talhão (safras e observações)", _history_block(d["historico"]))
     if "modelo" in imgs:
-        parts.append(f'<section><h2>7. Como o BALK pensou</h2>{_figure(imgs["modelo"], img_dir, img_base, inline)}</section>')
+        sec("modelo", "Como o BALK pensou", _figure(imgs["modelo"], img_dir, img_base, inline))
+    if d.get("metodo"):
+        sec("metodo", "Método: fórmulas e parâmetros", _method_block(d["metodo"], d.get("versao_regras", "")))
+    if not inline:
+        sec("baixar", "Baixar os dados", '<p>Para analisar em planilha, em SIG ou com outro algoritmo:</p><ul>'
+                                          f'<li><a href="{esc(img_base.rsplit("/img", 1)[0])}/dados.json">Todos os dados deste relatório (JSON)</a>: estatísticas, notas fator a fator, '
+                                          'critérios de cada alerta, clima hora a hora e mensal, histórico e método.</li>'
+                                          f'<li><a href="{esc(img_base.rsplit("/img", 1)[0])}/clima.csv">Clima hora a hora (CSV)</a>, com Delta T e as horas que servem para pulverizar.</li>'
+                                          f'<li><a href="{esc(img_base.rsplit("/img", 1)[0])}/baixar">Esta página em um arquivo só (HTML com as imagens)</a>.</li></ul>'
+                                          '<p class="small">A localização exata do talhão não vai no arquivo: só a área, as estatísticas e as contas.</p>')
     lim = "".join(f"<li>{esc(x)}</li>" for x in d["limites"])
-    parts.append(f"<section><h2>8. Limites: o que isto não é</h2><ul>{lim}</ul></section></main>")
+    sec("limites", "Limites: o que isto não é", f"<ul>{lim}</ul>")
+
+    indice = " · ".join(f'<a href="#{sid}">{i}. {esc(t)}</a>' for i, (sid, t, _) in enumerate(secoes, 1))
+    parts.append(f'<nav class="indice"><b>Neste relatório:</b> {indice}</nav>')
+    for i, (sid, titulo, html) in enumerate(secoes, 1):
+        parts.append(f'<section id="{sid}"><h2>{i}. {esc(titulo)}</h2>{html}</section>')
+    parts.append("</main>")
     atr = "".join(f"<li>{esc(a)}</li>" for a in d["atribuicoes"])
     parts.append(f"<footer><b>Fontes e atribuições</b><ul>{atr}</ul>Relatório gerado automaticamente pelo BALK. Guarde o link: "
                  "ele é pessoal e expira. Para falar com um agrônomo, responda 2 na conversa.</footer></body></html>")

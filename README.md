@@ -27,6 +27,8 @@ uvicorn app.main:app --reload
 Linux ou macOS: `python3.12 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt && DATA_MODE=simulado uvicorn app.main:app --reload`
 
 Abra <http://localhost:8000> (o site), <http://localhost:8000/demo/index.html> (simulador, sem login) e <http://localhost:8000/docs> (API).
+O simulador tem um celular com WhatsApp e um celular simples com SMS que recebem tudo o que o BALK envia (conversa, código do site, relatórios e alertas do dia),
+mais o painel da operação, da equipe (pedidos de agrônomo e métricas) e da cooperativa. Roteiro de certificação: [`docs/CERTIFICACAO_MVP.md`](docs/CERTIFICACAO_MVP.md).
 **Isto é o modo de desenvolvimento** (padrão sem `BALK_ENV`): liga o simulador, `/outbox` (mostra os códigos de verificação) e uma rota que apaga o banco. **Em servidor use sempre `BALK_ENV=production`.**
 No simulador: **Importar CSV** (cooperativa fictícia, 5 produtores) → **Rodar alertas do dia** → responda **1** ou **2** no
 celular de SMS → escolha um produtor e um destino em **Melhor hora de saída**. **Clique no link no fim de cada mensagem de WhatsApp**
@@ -106,7 +108,7 @@ OSRM (servidor de demonstração) · FAO EcoCrop e Embrapa como referência inic
 | Open-Meteo, geocodificação, OSRM (modo `real`) | Exercitados contra as APIs reais |
 | Motor geo (`app/geo/`): relevo, índices, zonas, área fraca | Implementado e coberto por testes com valores conhecidos. As relações marcadas **[H]** (erosão, baixada x geada, umidade x clima) são hipóteses sem validação agronômica |
 | Código do QGIS | **Não** está neste repositório (GPL; o regulamento proíbe fork). Os métodos publicados foram reimplementados; ver o guia, seção 6.6 |
-| Sentinel-2 / DEM / SoilGrids reais, incl. SWIR, borda do vermelho (B8A) e pH (`app/data/sentinel.py`) | Lógica de recorte, escala/deslocamento e unidades **testada com STAC falso e arquivos locais** (`tests/test_dados_reais.py`). **Nunca baixou do Earth Search/SoilGrids de verdade** (o ambiente de desenvolvimento não alcançou o Earth Search) |
+| Sentinel-2 / DEM / SoilGrids reais, incl. SWIR, borda do vermelho (B8A) e pH (`app/data/sentinel.py`) | Lógica de recorte, escala/deslocamento e unidades testada com STAC falso (`tests/test_dados_reais.py`) e **rodada com dados reais em 27/11/2026** (talhão de 39 ha em Sorriso, MT: Open-Meteo, Sentinel-2 do Earth Search, Copernicus DEM e SoilGrids; 63 a 79 s por talhão). O teste real achou e corrigiu três falhas: deslocamento de reflectância aplicado duas vezes (NDVI acima de 1), cena escolhida nublada sobre o talhão e argila que não vinha do SoilGrids. Ver `docs/CERTIFICACAO_MVP.md` |
 | Motor QGIS (`run_chain.py`), `Dockerfile`, `docker-compose.yml` | **Não testados** (sem Docker/QGIS). Confirmar IDs com `qgis_process list`/`help`; rodar `tests/test_equivalencia.py` |
 | Fluxos do n8n | Gerados por script, **não importados** num n8n real; criar credenciais (inclusive "BALK API key") pela interface |
 | WhatsApp Cloud API e Twilio (`app/channels.py`) | **Não testados** com contas reais; a demo usa o simulador. Passo a passo em `docs/OPERACAO.md` |

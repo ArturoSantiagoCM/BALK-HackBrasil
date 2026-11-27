@@ -46,43 +46,121 @@ def _save_window(href: str, bbox: list[float], out: Path, scale: float = 1.0, of
                 dst.write(arr, 1)
 
 
-def fetch_sentinel_clip(lat: float, lon: float, out_dir: Path, today: Optional[datetime] = None,
-                        max_cloud: int = 30, days: int = 30, bbox: Optional[list] = None) -> dict:
-    """Cena mais recente com <30% de nuvem nos últimos 30 dias -> red.tif, nir.tif, scl.tif, dem.tif.
+def scale_offset(item, asset) -> tuple[float, float]:
+    """Escala e deslocamento da reflectância (valor = DN x escala + deslocamento). O Earth Search v1 informa o deslocamento
+    de -0,1 nos metadados da banda, mas em boa parte das cenas JÁ o aplicou nos arquivos (propriedade
+    earthsearch:boa_offset_applied = true). Aplicar de novo deixa o vermelho negativo e o NDVI acima de 1."""
+    band = (asset.extra_fields.get("raster:bands") or [{}])[0]
+    offset = 0.0 if item.properties.get("earthsearch:boa_offset_applied") else band.get("offset", 0.0)
+    return band.get("scale", 0.0001), offset
 
-    `bbox` (lon0, lat0, lon1, lat1) permite cobrir um talhão grande; o padrão é 1 km ao redor do ponto."""
+
+VALIDAS = (4, 5)  # classes da SCL que valem: vegetação e solo exposto (nuvem, sombra, água e neve ficam de fora)
+
+
+def _valid_fraction(scl_href: str, bbox: list[float]) -> float:
+    """Fração da área com pixel útil na SCL (20 m, leitura barata). É o que diz se a cena serve PARA ESTE TALHÃO:
+    o percentual de nuvem do item é do recorte inteiro de 100 km e pode esconder um talhão nublado ou limpo."""
+    with rasterio.Env(AWS_NO_SIGN_REQUEST="YES", GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR"):
+        with rasterio.open(scl_href) as src:
+            b = transform_bounds("EPSG:4326", src.crs, *bbox)
+            win = from_bounds(*b, transform=src.transform).round_offsets().round_lengths()
+            scl = src.read(1, window=win)
+    return float(np.isin(scl, VALIDAS).mean()) if scl.size else 0.0
+
+
+def fetch_sentinel_clip(lat: float, lon: float, out_dir: Path, today: Optional[datetime] = None,
+                        max_cloud: int = 80, days: int = 60, bbox: Optional[list] = None,
+                        min_valid: float = 0.6, max_candidates: int = 6) -> dict:
+    """A cena mais recente que esteja LIMPA SOBRE O TALHÃO -> red, nir, scl, swir, rededge, nir08, dem, argila e pH.
+
+    Busca até `days` dias (o mesmo limite em que a imagem ainda é aceita), confere a SCL de até `max_candidates` cenas,
+    da mais nova para a mais velha, e fica com a primeira que tem pelo menos `min_valid` da área útil. Se nenhuma chegar
+    lá, usa a de maior área útil, desde que tenha ao menos 10%; abaixo disso falha (o serviço vira "sem imagem adequada").
+    `bbox` (lon0, lat0, lon1, lat1) cobre o talhão desenhado; o padrão é 1 km ao redor do ponto."""
     today = today or datetime.now()
     out_dir.mkdir(parents=True, exist_ok=True)
     bbox = bbox or bbox_around(lat, lon)
     client = Client.open(STAC_URL)
     rng = f"{(today - timedelta(days=days)):%Y-%m-%d}/{today:%Y-%m-%d}"
     items = list(client.search(collections=[S2_COLLECTION], bbox=bbox, datetime=rng,
-                               query={"eo:cloud_cover": {"lt": max_cloud}}, max_items=25).items())
+                               query={"eo:cloud_cover": {"lt": max_cloud}}, max_items=40).items())
     if not items:
-        raise RuntimeError("nenhuma cena Sentinel-2 com pouca nuvem nos últimos 30 dias")
-    item = max(items, key=lambda i: i.datetime)
+        raise RuntimeError(f"nenhuma cena Sentinel-2 nos últimos {days} dias")
+    items.sort(key=lambda i: i.datetime, reverse=True)
+    best, best_vf, tried = None, -1.0, []
+    for it in items[:max_candidates]:
+        try:
+            vf = _valid_fraction(it.assets["scl"].href, bbox)
+        except Exception:  # noqa: BLE001  (cena com arquivo ilegível: tenta a próxima)
+            continue
+        tried.append({"id": it.id, "data": it.datetime.strftime("%Y-%m-%d"), "util": round(vf, 3)})
+        if vf > best_vf:
+            best, best_vf = it, vf
+        if vf >= min_valid:
+            best, best_vf = it, vf
+            break
+    if best is None or best_vf < 0.1:
+        raise RuntimeError(f"nenhuma cena com o talhão visível (nuvem) nos últimos {days} dias: {tried}")
+    item = best
     for key in ("red", "nir"):
         asset = item.assets[key]
-        band = (asset.extra_fields.get("raster:bands") or [{}])[0]
-        _save_window(asset.href, bbox, out_dir / f"{key}.tif", scale=band.get("scale", 0.0001),
-                     offset=band.get("offset", 0.0), as_reflectance=True)
+        sc, off = scale_offset(item, asset)
+        _save_window(asset.href, bbox, out_dir / f"{key}.tif", scale=sc, offset=off, as_reflectance=True)
     _save_window(item.assets["scl"].href, bbox, out_dir / "scl.tif")
     for key, fname in (("swir16", "swir.tif"), ("rededge1", "rededge.tif"), ("nir08", "nir08.tif")):  # 20 m: NDMI/NDRE (B11, B05, B8A)
         if key in item.assets:  # opcionais: sem elas o motor geo só não calcula NDMI/NDRE
             asset = item.assets[key]
-            band = (asset.extra_fields.get("raster:bands") or [{}])[0]
-            _save_window(asset.href, bbox, out_dir / fname, scale=band.get("scale", 0.0001),
-                         offset=band.get("offset", 0.0), as_reflectance=True)
+            sc, off = scale_offset(item, asset)
+            _save_window(asset.href, bbox, out_dir / fname, scale=sc, offset=off, as_reflectance=True)
     dem_items = list(client.search(collections=[DEM_COLLECTION], bbox=bbox, max_items=1).items())
     if dem_items:
         _save_window(dem_items[0].assets["data"].href, bbox, out_dir / "dem.tif")
     has_clay = fetch_clay(lat, lon, out_dir / "clay.tif")
     has_ph = fetch_ph(lat, lon, out_dir / "ph.tif")
+    if not (has_clay and has_ph):  # o mapa de argila exige baixar um bloco grande e às vezes falha: reserva pela consulta por ponto
+        pt = soilgrids_point(lat, lon)
+        if not has_clay and pt.get("clay") is not None:
+            has_clay = _write_point(out_dir / "clay.tif", bbox, pt["clay"]) and "ponto"
+        if not has_ph and pt.get("ph") is not None:
+            has_ph = _write_point(out_dir / "ph.tif", bbox, pt["ph"]) and "ponto"
+    cloud = item.properties.get("eo:cloud_cover")
     meta = {"scene_date": item.datetime.strftime("%Y-%m-%d"), "scene_id": item.id, "source": "earth-search",
-            "clay": has_clay, "ph": has_ph, "cloud": item.properties.get("eo:cloud_cover"),
-            "created": today.isoformat(timespec="seconds")}
+            "clay": has_clay, "ph": has_ph, "cloud": cloud, "cloud_cover": cloud, "util_no_talhao": round(best_vf, 3),
+            "offset_ja_aplicado": bool(item.properties.get("earthsearch:boa_offset_applied")),
+            "cenas_conferidas": tried, "created": today.isoformat(timespec="seconds")}
     (out_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
     return meta
+
+
+SOILGRIDS_REST = "https://rest.isric.org/soilgrids/v2.0/properties/query"
+
+
+def soilgrids_point(lat: float, lon: float) -> dict:
+    """Argila (%) e pH (0-5 cm) num ponto, pela API do SoilGrids (uma chamada; uso moderado: ~5 por minuto). {} se falhar."""
+    import requests
+    try:
+        r = requests.get(SOILGRIDS_REST, params={"lon": round(lon, 5), "lat": round(lat, 5), "property": ["clay", "phh2o"],
+                                                  "depth": "0-5cm", "value": "mean"}, timeout=30)
+        r.raise_for_status()
+        out = {}
+        for layer in r.json()["properties"]["layers"]:
+            v = layer["depths"][0]["values"].get("mean")
+            if v is not None:
+                out["clay" if layer["name"] == "clay" else "ph"] = v / float(layer["unit_measure"].get("d_factor", 10))
+        return out
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _write_point(out: Path, bbox: list[float], value: float) -> bool:
+    """Grava o valor do ponto como um GeoTIFF de 1 pixel cobrindo a área inteira (o SoilGrids já é de 250 m: um valor só
+    para o talhão é o que o dado permite dizer)."""
+    from rasterio.transform import from_bounds as tb
+    with rasterio.open(out, "w", driver="GTiff", height=1, width=1, count=1, dtype="float32", crs="EPSG:4326",
+                       transform=tb(*bbox, 1, 1), nodata=np.nan) as dst:
+        dst.write(np.array([[value]], dtype="float32"), 1)
+    return True
 
 
 def fetch_clay(lat: float, lon: float, out: Path) -> bool:

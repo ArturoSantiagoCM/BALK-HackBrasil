@@ -60,10 +60,14 @@ def test_pagina_do_relatorio_tem_dados_mapas_conta_e_porque():
     r = client.get(f"/r/{tok}")
     assert r.status_code == 200
     html = r.text
-    for trecho in ["Os dados que coletamos", "Mapas da sua área", "Por que estas notas", "Alertas e por que foram enviados",
+    for trecho in ["Os dados que coletamos", "Mapas da área", "Por que estas notas", "Alertas e por que foram enviados",
                    "Como o BALK pensou", "Não substitui um engenheiro agrônomo", "SIMULADA",  # dados simulados avisados
                    "Open-Meteo", "Embrapa", "Premissa da equipe", "Conferido em fonte técnica", "Fator que mais limita",
-                   "Limite da regra", "Valor previsto", "atende", "noindex"]:
+                   "Limite da regra", "Valor previsto", "atende", "noindex",
+                   # camada para o técnico: conclusões amarradas, todos os números, as contas e o método
+                   "Conclusões (resumo para o técnico)", "Estatísticas completas da área", "NDVI percentil 10", "Clima hora a hora",
+                   "Delta T", "Serve p/ pulverizar", "Clima histórico por mês", "Método: fórmulas e parâmetros", "trapezoidal",
+                   "Stull", "Neste relatório", "dados.json", "clima.csv"]:
         assert trecho in html, trecho
     assert "+5500900000777" not in html  # nunca mostra o telefone
     assert "-23.5874" not in html and "-23.59" in html  # coordenadas só arredondadas (~1 km)
@@ -72,6 +76,22 @@ def test_pagina_do_relatorio_tem_dados_mapas_conta_e_porque():
     for k in ("ndvi", "slope", "zonas", "fatores", "clima", "modelo", "mapa"):
         img = client.get(f"/r/{tok}/img/{k}.png")
         assert img.status_code == 200 and img.content[:4] == b"\x89PNG", k
+
+
+def test_dados_do_relatorio_para_algoritmos_json_e_csv():
+    p = _produtor()
+    tok = _token(analyze_producer(p.id, full=True, now=NOW)["report_url"])
+    j = client.get(f"/r/{tok}/dados.json")
+    assert j.status_code == 200 and "attachment" in j.headers["content-disposition"]
+    d = j.json()
+    assert d["estatisticas"]["ndvi_mean"] is not None and d["ranking"] and d["culturas"][0]["fatores"]
+    assert len(d["clima_horas"]) == 72 and {"delta_t", "serve_pulverizar", "geada"} <= set(d["clima_horas"][0])
+    assert d["metodo"] and d["conclusoes"] and "historico" in d
+    assert not ({"_producer_id", "_token", "poligono", "work_key"} & set(d))  # nada que localize o talhão nem ids internos
+    c = client.get(f"/r/{tok}/clima.csv")
+    linhas = c.text.strip().splitlines()
+    assert c.status_code == 200 and linhas[0].startswith("hora;temp_c") and len(linhas) == 73
+    assert client.get("/r/tokeninexistente123456/dados.json").status_code == 404
 
 
 def test_cabecalhos_de_seguranca_do_relatorio():
@@ -124,7 +144,7 @@ def test_relatorio_so_de_municipio_abre_sem_mapas_e_avisa():
     p = _produtor(location_precision="municipio", phone="+5500900000779")
     res = analyze_producer(p.id, full=True, now=NOW)
     r = client.get(f"/r/{_token(res['report_url'])}")
-    assert r.status_code == 200 and "município" in r.text and "Mapas da sua área" not in r.text
+    assert r.status_code == 200 and "município" in r.text and "Mapas da área" not in r.text
     assert "Os dados que coletamos" in r.text and "Como o BALK pensou" in r.text
 
 
@@ -133,7 +153,7 @@ def test_alerta_do_dia_tambem_traz_o_link_e_o_porque():
     res = analyze_producer(p.id, full=False, now=NOW)
     assert res["alerts"] and res["report_url"]
     page = client.get(f"/r/{_token(res['report_url'])}").text  # imagens geradas na primeira visita
-    assert "Alertas e por que foram enviados" in page and "Mapas da sua área" in page
+    assert "Alertas e por que foram enviados" in page and "Mapas da área" in page
 
 
 def test_ceu_que_explica_a_nota_bate_com_a_nota_enviada():

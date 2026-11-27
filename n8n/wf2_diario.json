@@ -21,51 +21,16 @@
       }
     },
     {
-      "name": "GET /producers/active",
+      "name": "POST /jobs/daily",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        240,
-        0
-      ],
-      "parameters": {
-        "method": "GET",
-        "url": "http://api:8000/producers/active",
-        "options": {},
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
-      },
-      "onError": "continueErrorOutput",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "",
-          "name": "BALK API key"
-        }
-      }
-    },
-    {
-      "name": "Um produtor por vez",
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 3,
-      "position": [
-        480,
-        0
-      ],
-      "parameters": {
-        "batchSize": 1
-      }
-    },
-    {
-      "name": "POST /analyze/{id}",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        720,
+        260,
         0
       ],
       "parameters": {
         "method": "POST",
-        "url": "=http://api:8000/analyze/{{$json.id}}",
+        "url": "http://api:8000/jobs/daily",
         "options": {},
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
@@ -79,114 +44,42 @@
       }
     },
     {
-      "name": "Alertas da análise",
-      "type": "n8n-nodes-base.code",
+      "name": "Houve erro?",
+      "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        960,
+        520,
         0
       ],
       "parameters": {
-        "jsCode": "const r = $json; const out = [];\nconst alerts = r.messages.filter(m => m.kind === 'alert');\nalerts.forEach(m => out.push({json: {producer_id: r.producer_id, phone: r.phone, channel: r.channel, type: m.type, text: m.text}}));\nreturn out;"
-      }
-    },
-    {
-      "name": "Canal",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3,
-      "position": [
-        1200,
-        0
-      ],
-      "parameters": {
-        "rules": {
-          "values": [
+        "conditions": {
+          "conditions": [
             {
-              "conditions": {
-                "conditions": [
-                  {
-                    "leftValue": "={{$json.channel}}",
-                    "rightValue": "whatsapp",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ]
-              },
-              "renameOutput": true,
-              "outputKey": "whatsapp"
-            },
-            {
-              "conditions": {
-                "conditions": [
-                  {
-                    "leftValue": "={{$json.channel}}",
-                    "rightValue": "sms",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ]
-              },
-              "renameOutput": true,
-              "outputKey": "sms"
+              "leftValue": "={{$json.erros.length}}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
           ]
         }
       }
     },
     {
-      "name": "Enviar WhatsApp (Meta Cloud API)",
+      "name": "POST /jobs/purge",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1460,
-        -80
+        780,
+        120
       ],
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.facebook.com/v21.0/{{$env.WHATSAPP_PHONE_ID}}/messages",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\"messaging_product\":\"whatsapp\",\"to\":\"{{$json.phone}}\",\"type\":\"text\",\"text\":{\"body\":{{JSON.stringify($json.text)}}}}"
-      }
-    },
-    {
-      "name": "Enviar SMS (Twilio)",
-      "type": "n8n-nodes-base.twilio",
-      "typeVersion": 1,
-      "position": [
-        1460,
-        80
-      ],
-      "parameters": {
-        "operation": "send",
-        "from": "={{$env.TWILIO_FROM}}",
-        "to": "={{$json.phone}}",
-        "message": "={{$json.text}}"
-      }
-    },
-    {
-      "name": "POST /alerts/log",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1700,
-        0
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "http://api:8000/alerts/log",
+        "url": "http://api:8000/jobs/purge",
         "options": {},
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\"producer_id\": {{$(\"Alertas da análise\").item.json.producer_id}}, \"type\": \"{{$(\"Alertas da análise\").item.json.type}}\"}"
+        "genericAuthType": "httpHeaderAuth"
       },
       "onError": "continueErrorOutput",
       "credentials": {
@@ -201,8 +94,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        720,
-        200
+        780,
+        -120
       ],
       "parameters": {
         "method": "POST",
@@ -219,41 +112,18 @@
       "main": [
         [
           {
-            "node": "GET /producers/active",
+            "node": "POST /jobs/daily",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "GET /producers/active": {
+    "POST /jobs/daily": {
       "main": [
         [
           {
-            "node": "Um produtor por vez",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Um produtor por vez": {
-      "main": [
-        [],
-        [
-          {
-            "node": "POST /analyze/{id}",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "POST /analyze/{id}": {
-      "main": [
-        [
-          {
-            "node": "Alertas da análise",
+            "node": "Houve erro?",
             "type": "main",
             "index": 0
           }
@@ -267,62 +137,18 @@
         ]
       ]
     },
-    "Alertas da análise": {
+    "Houve erro?": {
       "main": [
         [
           {
-            "node": "Canal",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Canal": {
-      "main": [
-        [
-          {
-            "node": "Enviar WhatsApp (Meta Cloud API)",
+            "node": "Avisar equipe (erro)",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Enviar SMS (Twilio)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Enviar WhatsApp (Meta Cloud API)": {
-      "main": [
-        [
-          {
-            "node": "POST /alerts/log",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Enviar SMS (Twilio)": {
-      "main": [
-        [
-          {
-            "node": "POST /alerts/log",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "POST /alerts/log": {
-      "main": [
-        [
-          {
-            "node": "Um produtor por vez",
+            "node": "POST /jobs/purge",
             "type": "main",
             "index": 0
           }

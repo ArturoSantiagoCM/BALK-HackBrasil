@@ -33,6 +33,8 @@ colheita:
 satelite:
   aviso_apos_dias: 30       # cena mais velha que isso: o relatório avisa e a confiança já é baixa
   descartar_apos_dias: 60   # mais velha que isso: "sem imagem adequada" (só clima); não se apresenta dado velho como atual
+  util_minimo: 0.1          # fração mínima do talhão visível (sem nuvem/sombra na SCL); abaixo disso: "sem imagem adequada"
+  util_desejado: 0.6        # a coleta procura, da cena mais nova para a mais velha, a primeira com pelo menos isto visível
   fonte: "premissa da equipe (o Sentinel-2 revisita a cada ~5 dias; nuvem pode esconder a lavoura por semanas)"
 silencio:
   max_por_dia: 2            # limite diário por contato (geada é exceção); premissa

@@ -30,7 +30,7 @@ def test_conversa_pelo_simulador_gera_relatorio_ao_ficar_ativo():
     r = say("20/07")
     assert r["became_active"]
     rel = [m for m in r["messages"] if m["kind"] == "report"][0]
-    assert "Não substitui um engenheiro agrônomo" in rel["text"] and "soja" in rel["text"]
+    assert "Não substitui um engenheiro agrônomo" in rel["text"] and "soja" in rel["text"].lower()
     assert rel["media_url"].endswith("/img/mapa.png") and "/r/" in rel["media_url"]
     assert "http" in rel["text"].rstrip().split("\n")[-1]  # a mensagem termina com o link do relatório
     png = client.get(rel["media_url"].replace("http://localhost:8000", ""))
@@ -98,7 +98,8 @@ def test_sms_inbound_cadastro_e_resposta_1_ou_2():
         return client.post("/sms/inbound", json={"from": "+5500900008888", "body": body}).json()  # JSON = dev/n8n; Twilio = formulário assinado
     assert "SIM" in sms("BALK soja 20/10 Sorriso MT")["reply"]
     r = sms("SIM")
-    assert r["became_active"] and r["messages"][0]["text"].startswith("BALK:")
+    # cadastro por município: a resposta já explica que só há alerta de clima; não sai uma segunda mensagem repetindo
+    assert r["became_active"] and r["reply"].startswith("BALK: cadastro ok") and r["messages"] == []
     assert sms("1")["reply"] == "Registrado, obrigado."
     assert client.post("/sms/inbound", json={"body": "x"}).status_code == 422
     twiml = client.post("/sms/inbound", data={"From": "+5500900008889", "Body": "oi"})  # formulário (sem token Twilio em dev)

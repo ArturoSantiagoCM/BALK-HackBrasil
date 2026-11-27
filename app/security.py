@@ -74,6 +74,19 @@ def verify_meta_signature(body: bytes, header: Optional[str], app_secret: str) -
     return hmac.compare_digest(expected, header[7:])
 
 
+def verify_smsgate_signature(body: bytes, signature: Optional[str], timestamp: Optional[str], key: str,
+                             now: Optional[float] = None, max_skew: int = 300) -> bool:
+    """SMS Gateway for Android: X-Signature = HMAC-SHA256 em hexadecimal de (corpo bruto + X-Timestamp), com a chave de
+    assinatura do app. O horário precisa estar a até 5 minutos do nosso (impede reenviar uma mensagem antiga)."""
+    import time as _t
+    if not signature or not timestamp or not key or not timestamp.isdigit():
+        return False
+    if abs((now if now is not None else _t.time()) - int(timestamp)) > max_skew:
+        return False
+    expected = hmac.new(key.encode(), body + timestamp.encode(), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature.strip().lower())
+
+
 def twilio_signature(url: str, params: dict, auth_token: str) -> str:
     """Assinatura da Twilio: HMAC-SHA1 de (URL + parâmetros do POST ordenados por nome, nome e valor colados), em base64."""
     data = url + "".join(f"{k}{params[k]}" for k in sorted(params))
