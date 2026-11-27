@@ -234,3 +234,29 @@ def test_demo_mantem_as_rotas_internas_com_chave(monkeypatch):
 def test_demo_recusa_subir_com_pendencias(monkeypatch, extra):
     with pytest.raises(RuntimeError, match="BALK_ENV=demo com pendências"):
         _app(monkeypatch, **{**DEMO_ENV, **extra})
+
+# ---- produtores fictícios da demo pública ----
+def test_demo_importar_csv_sem_chave_usa_so_o_csv_ficticio(monkeypatch):
+    c = _app(monkeypatch, **DEMO_ENV)
+    r = c.post("/ingest/producers", content="telefone,lat,lon\n+5511999999999,-23.5,-46.6\n",
+               headers={"content-type": "text/csv"})
+    assert r.status_code == 200 and r.json()["aceitos"] == 5
+    phones = {p["phone"] for p in c.get("/producers").json()}
+    assert "+5511999999999" not in phones and all(x.startswith("+55009") for x in phones)
+
+
+def test_demo_carrega_os_produtores_ficticios_uma_vez(monkeypatch):
+    for k, v in DEMO_ENV.items():
+        monkeypatch.setenv(k, v)
+    from app import db, main
+    assert main.seed_demo_if_empty() is True
+    assert len(db.list_all()) == 5
+    assert main.seed_demo_if_empty() is False  # já carregado: não repete
+    assert len(db.list_all()) == 5
+
+
+def test_fora_da_demo_importar_csv_continua_aceitando_o_corpo(monkeypatch):
+    c = _app(monkeypatch, BALK_ENV="dev")
+    r = c.post("/ingest/producers?analisar=false", content="telefone,lat,lon,cultura,data_plantio,canal,origem,consentimento\n"
+               "+5500900009999,-23.5874,-46.6576,soja,2026-07-25,whatsapp,teste,sim\n", headers={"content-type": "text/csv"})
+    assert r.status_code == 200 and r.json()["aceitos"] == 1

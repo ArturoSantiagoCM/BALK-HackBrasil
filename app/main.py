@@ -11,6 +11,7 @@ import os
 import re
 import time
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Optional
 
@@ -289,6 +290,11 @@ async def ingest_producers(request: Request, analisar: bool = True):
             rows = parse_csv_text(data["csv"])
     else:
         rows = parse_csv_text(raw)
+    return _ingest(rows, analisar)
+
+
+def _ingest(rows: list[dict], analisar: bool = True) -> dict:
+    """Cadastra as linhas, manda os convites de aceite e (se pedido) analisa cada produtor ativo."""
     out = ingest_rows(rows)
     out["relatorios"] = []
     out["convites_enviados"] = 0
@@ -438,6 +444,47 @@ def simulate_reset():
     return {"ok": True}
 
 
+# ---- produtores fictícios da demo pública (BALK_ENV=demo)
+DEMO_CSV = ROOT / "demo" / "coop.csv"
+demo_import_limiter = security.RateLimiter(5, 60)  # a análise gera mapas: no máximo 5 importações por minuto por IP
+
+
+def demo_ingest_producers():
+    """Botão "Importar CSV" na demo pública: importa SÓ o CSV fictício do repositório e ignora o corpo enviado,
+    para nenhum visitante cadastrar telefones de verdade."""
+    return _ingest(parse_csv_text(DEMO_CSV.read_text(encoding="utf-8")))
+
+
+def seed_demo_if_empty() -> bool:
+    """Banco vazio na demo pública: carrega os 5 produtores fictícios e roda a primeira análise.
+    Devolve True se carregou, False se já havia produtores."""
+    if db.list_all():
+        return False
+    out = demo_ingest_producers()
+    log.info("demo: %s produtores fictícios carregados", out["aceitos"])
+    return True
+
+
+def _seed_in_background():
+    """Roda a carga numa thread para o servidor responder ao /health enquanto os mapas são gerados."""
+    import threading
+
+    def run():
+        try:
+            seed_demo_if_empty()
+        except Exception:  # noqa: BLE001 (a demo sobe mesmo se a carga falhar; o botão "Importar CSV" continua valendo)
+            log.exception("demo: falha ao carregar os produtores fictícios")
+
+    threading.Thread(target=run, name="demo-seed", daemon=True).start()
+
+
+@asynccontextmanager
+async def _demo_lifespan(_app: FastAPI):
+    """Na demo pública, ao subir o servidor: carrega os produtores fictícios se o banco estiver vazio."""
+    _seed_in_background()
+    yield
+
+
 @demo.get("/outbox")
 def outbox():
     """O que o canal de console 'enviou' (só fora de produção): a demo lê o código de verificação e os relatórios daqui."""
@@ -502,7 +549,8 @@ def create_app() -> FastAPI:
     if prod and config.production_problems():
         raise RuntimeError("BALK_ENV=production com pendências: " + "; ".join(config.production_problems()))
     a = FastAPI(title="BALK", description="Orientação agronômica curta por WhatsApp e SMS", version="0.2.0",
-                docs_url=None if prod else "/docs", redoc_url=None, openapi_url=None if prod else "/openapi.json")
+                docs_url=None if prod else "/docs", redoc_url=None, openapi_url=None if prod else "/openapi.json",
+                lifespan=_demo_lifespan if config.is_demo() else None)
     a.middleware("http")(observe)
     a.include_router(public)
     a.include_router(site_api.api)  # /api/*: cadastro com código, talhões, histórico (sessão por cookie)
@@ -513,6 +561,10 @@ def create_app() -> FastAPI:
         a.mount("/demo", StaticFiles(directory=str(ROOT / "demo"), html=True), name="demo")
     if config.is_demo() and config.demo_problems():
         raise RuntimeError("BALK_ENV=demo com pendências: " + "; ".join(config.demo_problems()))
+    if config.is_demo():
+        # vem antes do router interno: na demo, /ingest/producers só importa o CSV fictício, sem chave e com limite
+        a.add_api_route("/ingest/producers", demo_ingest_producers, methods=["POST"], include_in_schema=False,
+                        dependencies=[security.limiter_dependency(demo_import_limiter)])
     a.include_router(internal)
     a.mount("/app", StaticFiles(directory=str(WEB), html=True), name="app")  # páginas do site e bibliotecas do mapa (web/vendor)
     return a
