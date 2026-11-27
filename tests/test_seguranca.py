@@ -230,7 +230,8 @@ def test_demo_mantem_as_rotas_internas_com_chave(monkeypatch):
 
 
 @pytest.mark.parametrize("extra", [dict(BALK_API_KEY=""), dict(PUBLIC_BASE_URL="http://localhost:8000"),
-                                   dict(BALK_AUTH_SECRET=""), dict(DATA_MODE="real"), dict(WHATSAPP_TOKEN="x")])
+                                   dict(BALK_AUTH_SECRET=""), dict(DATA_MODE="real"), dict(WHATSAPP_TOKEN="x"),
+                                   dict(OPENWA_URL="http://openwa:2785"), dict(SMSGATE_URL="https://api.sms-gate.app/3rdparty/v1")])
 def test_demo_recusa_subir_com_pendencias(monkeypatch, extra):
     with pytest.raises(RuntimeError, match="BALK_ENV=demo com pendências"):
         _app(monkeypatch, **{**DEMO_ENV, **extra})

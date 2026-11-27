@@ -107,7 +107,7 @@ def demo_problems() -> list[str]:
         p.append("BALK_AUTH_SECRET ausente ou curto (24+ caracteres aleatórios)")
     if data_mode() == "real":
         p.append("DATA_MODE=real na demo: use simulado ou auto")
-    for k in ("WHATSAPP_TOKEN", "TWILIO_ACCOUNT_SID"):
+    for k in ("WHATSAPP_TOKEN", "TWILIO_ACCOUNT_SID", "OPENWA_URL", "SMSGATE_URL"):
         if os.getenv(k):
             p.append(f"{k} definido: a demo não envia mensagens reais, remova a credencial")
     return p
