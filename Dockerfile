@@ -5,7 +5,7 @@ FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1 ENGINE=python BALK_ENV=production \
     BALK_DB=/srv/balk/data_store/balk.db BALK_WORK=/srv/balk/work MPLBACKEND=Agg
 WORKDIR /srv/balk
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* \
+RUN apt-get update && apt-get install -y --no-install-recommends curl libexpat1 && rm -rf /var/lib/apt/lists/* \
  && useradd -m -u 10001 balk && mkdir -p /srv/balk/data_store /srv/balk/work && chown -R balk /srv/balk
 COPY requirements.lock.txt requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.lock.txt
