@@ -781,3 +781,8 @@ footer .legal {
     padding-block: 52px;
   }
 }
+
+/* ligação com as páginas do produtor (web/produtor.html) */
+.hero-prod { margin-top: 18px; color: var(--muted); font-size: 0.95rem; }
+.hero-prod a, .card-link a { color: var(--field); font-weight: 500; }
+.card-link { margin-top: 12px; }
