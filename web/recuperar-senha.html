@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Recuperar senha | BALK</title>
+  <meta name="description" content="Receba por WhatsApp um link para criar uma nova senha no BALK.">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="./css/paginas.css">
+</head>
+<body>
+  <div class="top"><a href="entrar.html">← Voltar para entrar</a></div>
+  <main>
+    <div class="box">
+      <h1>Recuperar senha</h1>
+      <p class="sub">Informe seu WhatsApp. Se houver uma conta com esse número, enviamos um link para criar uma nova senha.</p>
+      <form id="f" action="/api/auth/recuperar" method="post" novalidate>
+        <div class="f">
+          <label for="w">WhatsApp</label>
+          <input id="w" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="(19) 99999-9999" required aria-describedby="w-e">
+          <p class="err" id="w-e"></p>
+        </div>
+        <button class="submit" type="submit">Enviar link</button>
+      </form>
+      <p class="ok" id="done" role="status" hidden>Pronto. Se esse número tiver conta, o link chega por WhatsApp em alguns minutos. Confira também o SMS.</p>
+      <p class="alt">Lembrou a senha? <a href="entrar.html">Entrar</a></p>
+    </div>
+  </main>
+  <footer><a href="termos.html">Termos de uso</a><a href="privacidade.html">Privacidade</a></footer>
+  <script>
+  (function(){
+    var f=document.getElementById('f'),w=document.getElementById('w'),e=document.getElementById('w-e'),done=document.getElementById('done');
+    f.addEventListener('submit',function(ev){
+      ev.preventDefault();
+      var d=w.value.replace(/\D/g,'');
+      if(d.length<10||d.length>13){
+        e.textContent='Digite o WhatsApp com DDD. Exemplo: (19) 99999-9999.';
+        w.setAttribute('aria-invalid','true');w.focus();return;
+      }
+      e.textContent='';w.setAttribute('aria-invalid','false');
+      var b=f.querySelector('.submit');b.disabled=true;b.textContent='Enviando...';
+      // A resposta é sempre a mesma, exista a conta ou não (evita revelar quem é cadastrado).
+      fetch(f.action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({whatsapp:w.value}),credentials:'same-origin'})
+        .catch(function(){})
+        .then(function(){f.hidden=true;done.hidden=false;done.tabIndex=-1;done.focus();});
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+/* Complementa web/css/paginas.css com o que é exclusivo da página de login */
+.pw{position:relative}
+.pw input{padding-right:84px}
+.pw button{position:absolute;right:4px;top:4px;min-height:40px;padding:0 12px;border:0;background:transparent;color:var(--brand);font:500 .9rem Inter,sans-serif;cursor:pointer;border-radius:6px}
+.status{margin:0 0 16px;padding:10px 12px;border-radius:8px;border:1px solid var(--danger);color:var(--danger);font-size:.9rem}
+.signup{margin-top:22px;padding-top:20px;border-top:1px solid var(--line);text-align:center}
+.signup p{margin:0 0 10px;color:var(--muted);font-size:.95rem}
+.btn-outline{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;border:2px solid var(--brand);border-radius:8px;color:var(--brand);font-weight:600;text-decoration:none}
+.btn-outline:hover{background:var(--brand);color:var(--brand-ink)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}

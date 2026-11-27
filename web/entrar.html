@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Entrar | BALK</title>
+  <meta name="description" content="Entre na sua conta do BALK para acompanhar suas recomendações agronômicas.">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="./css/paginas.css">
+  <link rel="stylesheet" href="./css/entrar.css">
+</head>
+<body>
+  <div class="top"><a href="index.html">← Voltar para o BALK</a></div>
+
+  <main>
+    <div class="box">
+      <h1>Entrar no BALK</h1>
+      <p class="sub">Acompanhe suas recomendações e talhões.</p>
+
+      <div id="status" class="status" role="alert" hidden></div>
+
+      <form id="login" action="/api/auth/login" method="post" novalidate>
+        <div class="f">
+          <label for="whatsapp">WhatsApp</label>
+          <input id="whatsapp" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="(19) 99999-9999" required aria-describedby="whatsapp-e">
+          <p class="err" id="whatsapp-e"></p>
+        </div>
+        <div class="f">
+          <label for="senha">Senha</label>
+          <div class="pw">
+            <input id="senha" name="senha" type="password" autocomplete="current-password" required aria-describedby="senha-e">
+            <button type="button" id="toggle" aria-controls="senha" aria-pressed="false">Mostrar</button>
+          </div>
+          <p class="err" id="senha-e"></p>
+        </div>
+        <button class="submit" type="submit">Entrar</button>
+        <p class="alt"><a href="recuperar-senha.html">Esqueci minha senha</a></p>
+      </form>
+
+      <div class="signup">
+        <p>Não tem conta?</p>
+        <a class="btn-outline" href="cadastro.html">Cadastre-se agora</a>
+      </div>
+    </div>
+  </main>
+
+  <footer>BALK · Hack Brasil 2026 · Projeto acadêmico em fase de demonstração</footer>
+
+  <script src="web/js/entrar.js" defer></script>
+</body>
+</html>

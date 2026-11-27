@@ -781,3 +781,33 @@ footer .legal {
     padding-block: 52px;
   }
 }
+
+.auth {
+  margin-left: auto;          /* empurra para a direita no header */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth .btn {
+  min-height: 44px;           /* alvo de toque mínimo */
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.auth .btn:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+
+/* Telas médias: libera espaço no header */
+@media (max-width: 960px) {
+  .track { display: none; }
+}
+
+/* Celular: botões menores, mas ainda com 44px de altura */
+@media (max-width: 520px) {
+  .auth { gap: 6px; }
+  .auth .btn { padding-inline: 12px; font-size: .875rem; }
+}
